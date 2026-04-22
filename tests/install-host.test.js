@@ -40,4 +40,17 @@ module.exports = function runInstallHostTest() {
   const codexConfig = fs.readFileSync(path.join(homeDir, ".codex", "config.toml"), "utf8");
   assert.equal(/model_instructions_file\s*=/.test(codexConfig), true);
   assert.equal(codexConfig.includes("ekg-model-instructions.md"), true);
+
+  const codexStrongResult = installCodexIntegration({
+    ekgRoot,
+    homeDir,
+    codexMode: "strong"
+  });
+  assert.equal(codexStrongResult.codexMode, "strong");
+  assert.equal(fs.existsSync(path.join(homeDir, ".codex", "hooks.json")), true);
+  assert.equal(fs.existsSync(path.join(homeDir, ".codex", "AGENTS.override.md")), true);
+
+  const codexStrongConfig = fs.readFileSync(path.join(homeDir, ".codex", "config.toml"), "utf8");
+  assert.equal(/\[features\]/.test(codexStrongConfig), true);
+  assert.equal(/codex_hooks\s*=\s*true/.test(codexStrongConfig), true);
 };

@@ -13,6 +13,7 @@ There is now also an installer entry:
 ```powershell
 node scripts/install-host.js --host claude
 node scripts/install-host.js --host codex
+node scripts/install-host.js --host codex --codex-mode strong
 ```
 
 This avoids two failure modes:
@@ -92,8 +93,33 @@ This file is a template, not a guaranteed drop-in config for every host.
 ## Host support matrix
 
 - `Claude`: full hook automation is supported and already implemented.
-- `Codex`: official `model_instructions_file` integration is supported; experimental hooks are optional and should be treated as non-default.
+- `Codex`: `light` mode keeps the stable `model_instructions_file` path. `hooks` mode adds official hook wiring (`SessionStart`, `UserPromptSubmit`, `PreToolUse`/`PermissionRequest` for Bash, `Stop`). `strong` mode also writes a global `~/.codex/AGENTS.override.md` so the workflow is reinforced before any work starts.
 - `Other agents`: reuse the CLI and adapt the hook templates.
+
+## Codex strong mode
+
+Recommended command:
+
+```powershell
+node scripts/install-host.js --host codex --codex-mode strong
+```
+
+This installs:
+
+- `~/.codex/config.toml` → keeps `model_instructions_file`
+- `~/.codex/hooks.json` → installs Codex hook automation
+- `~/.codex/AGENTS.override.md` → global Codex guidance for EKG
+
+Practical effect:
+
+- session start reminds Codex that EKG is active
+- each submitted prompt gets an EKG reminder and prompt-aligned experience hints
+- Bash permission hooks block direct writes to `ekg-out/ekg.sqlite`, `ekg.json`, and `state.json`
+- task end creates reviewable capture candidates
+
+Current caveat:
+
+- according to the official Codex hooks docs, hooks are still experimental and Windows support may be temporarily disabled, so keep the instructions/AGENTS layer as the baseline even when strong mode is installed
 
 ## Review flow after automatic capture
 

@@ -5,6 +5,9 @@ const {
   setTomlString,
   setTomlBooleanInTable,
   buildCodexInstructions,
+  buildCodexGlobalGuidance,
+  buildCodexHookSpecs,
+  mergeCodexHooksSettings,
   buildCodexHooksJson
 } = require("../lib/integrations");
 
@@ -45,7 +48,30 @@ module.exports = function runIntegrationsTest() {
   assert.equal(instructions.includes("Preserved Existing Instructions"), true);
   assert.equal(instructions.includes("Preserve me."), true);
 
+  const globalGuidance = buildCodexGlobalGuidance({
+    ekgRoot: "C:/repo/ekg",
+    existingGuidancePath: "C:/Users/demo/.codex/AGENTS.md",
+    existingGuidanceText: "# Existing global guidance"
+  });
+  assert.equal(globalGuidance.includes("Global Codex + EKG Workflow"), true);
+  assert.equal(globalGuidance.includes("Preserved Existing Global Guidance"), true);
+  assert.equal(globalGuidance.includes("Existing global guidance"), true);
+
+  const hookSpecs = buildCodexHookSpecs("C:/repo/ekg");
+  assert.equal(hookSpecs.sessionStart.command.includes("codex-session-start.js"), true);
+  assert.equal(hookSpecs.userPromptSubmit.command.includes("codex-user-prompt.js"), true);
+  assert.equal(hookSpecs.preToolBash.command.includes("codex-bash-guard.js"), true);
+
+  const mergedHooks = mergeCodexHooksSettings({}, "C:/repo/ekg");
+  assert.equal(Array.isArray(mergedHooks.hooks.SessionStart), true);
+  assert.equal(Array.isArray(mergedHooks.hooks.UserPromptSubmit), true);
+  assert.equal(Array.isArray(mergedHooks.hooks.PreToolUse), true);
+  assert.equal(Array.isArray(mergedHooks.hooks.PermissionRequest), true);
+  assert.equal(Array.isArray(mergedHooks.hooks.Stop), true);
+
   const hooksJson = buildCodexHooksJson("C:/repo/ekg");
+  assert.equal(Array.isArray(hooksJson.hooks.SessionStart), true);
+  assert.equal(Array.isArray(hooksJson.hooks.UserPromptSubmit), true);
   assert.equal(Array.isArray(hooksJson.hooks.Stop), true);
   assert.equal(
     hooksJson.hooks.Stop[0].hooks[0].command.includes("hooks/task-complete.js"),

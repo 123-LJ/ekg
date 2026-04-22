@@ -7,6 +7,7 @@
     "test": "node tests/run.js",
     "install:claude": "node scripts/install-host.js --host claude",
     "install:codex": "node scripts/install-host.js --host codex",
+    "install:codex:strong": "node scripts/install-host.js --host codex --codex-mode strong",
     "install:all": "node scripts/install-host.js --host all"
   }
 }

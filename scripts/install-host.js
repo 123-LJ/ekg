@@ -22,11 +22,16 @@ function printUsage() {
       "",
       "Options:",
       "  --dry-run                      Show target changes without writing files",
-      "  --enable-codex-hooks          Also write ~/.codex/hooks.json and enable experimental hooks",
+      "  --enable-codex-hooks          Alias for --codex-mode hooks",
+      "  --codex-mode <light|hooks|strong>",
+      "                                light: instructions only",
+      "                                hooks: instructions + hooks.json + codex_hooks feature",
+      "                                strong: hooks mode + global ~/.codex/AGENTS.override.md",
       "  --claude-settings <path>      Override Claude settings path",
       "  --codex-config <path>         Override Codex config.toml path",
       "  --codex-instructions <path>   Override generated Codex instructions path",
-      "  --codex-hooks <path>          Override generated Codex hooks.json path"
+      "  --codex-hooks <path>          Override generated Codex hooks.json path",
+      "  --codex-agents <path>         Override generated Codex AGENTS.override.md path"
     ].join("\n")
   );
 }
@@ -34,7 +39,9 @@ function printUsage() {
 function runInstaller(parsed) {
   const host = String(parsed.options.host || parsed.positional[0] || "all").trim().toLowerCase();
   const dryRun = Boolean(parsed.options["dry-run"]);
-  const enableCodexHooks = Boolean(parsed.options["enable-codex-hooks"]);
+  const codexMode = String(
+    parsed.options["codex-mode"] || (parsed.options["enable-codex-hooks"] ? "hooks" : "light")
+  ).trim().toLowerCase();
   const ekgRoot = path.resolve(__dirname, "..");
   const homeDir = os.homedir();
   const results = [];
@@ -58,7 +65,10 @@ function runInstaller(parsed) {
         configPath: parsed.options["codex-config"],
         instructionsPath: parsed.options["codex-instructions"],
         hooksPath: parsed.options["codex-hooks"],
-        enableExperimentalHooks: enableCodexHooks,
+        agentsPath: parsed.options["codex-agents"],
+        codexMode,
+        enableExperimentalHooks: codexMode === "hooks" || codexMode === "strong",
+        installGlobalAgents: codexMode === "strong",
         dryRun
       })
     );
