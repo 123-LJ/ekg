@@ -88,6 +88,8 @@ module.exports = function runCommandsTest() {
     commands.printUsage();
   });
   assert.equal(helpOutput.includes("pipeline-status"), true);
+  assert.equal(helpOutput.includes("backup-export"), true);
+  assert.equal(helpOutput.includes("backup-inspect"), true);
 
   const statsOutput = captureLogs(() => {
     commands.commandStats(runtime);

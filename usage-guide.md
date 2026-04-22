@@ -41,6 +41,7 @@ Install into a host:
 ```powershell
 node scripts/install-host.js --host claude
 node scripts/install-host.js --host codex
+node scripts/install-host.js --host codex --codex-mode strong
 ```
 
 See command help:
@@ -259,7 +260,55 @@ Current recommendation:
 - keep production use on SQLite
 - keep JSON export enabled for debugging and portability
 
-## 7. Multi-agent usage
+## 7. Portable backup and restore
+
+Export a one-file portable backup package:
+
+```powershell
+node scripts/ekg.js backup-export
+```
+
+Or choose your own output path:
+
+```powershell
+node scripts/ekg.js backup-export --output backups/
+node scripts/ekg.js backup-export --output backups/my-ekg.ekgpack.json.gz
+```
+
+Inspect a package before restoring:
+
+```powershell
+node scripts/ekg.js backup-inspect backups/my-ekg.ekgpack.json.gz
+```
+
+This package includes:
+
+- `config.json`
+- `ekg-out/ekg.sqlite` and SQLite sidecars when present
+- exported `ekg-out/ekg.json`
+- exported `ekg-out/state.json`
+- generated report
+- `experiences/*.md`
+
+Restore from a portable package in a new cloned EKG repo:
+
+```powershell
+node scripts/ekg.js backup-import backups/ekg-backup-20260422-120000.ekgpack.json.gz
+```
+
+After restore, reinstall host integration for the new machine/path:
+
+```powershell
+node scripts/install-host.js --host codex --codex-mode strong
+node scripts/install-host.js --host claude
+```
+
+Why reinstall is required:
+
+- Codex and Claude host config files use local absolute paths
+- backup packages restore EKG data and config, not host-global agent settings
+
+## 8. Multi-agent usage
 
 This project already includes a write lock mechanism.
 
@@ -276,7 +325,7 @@ Recommended rule for multi-agent use:
 - write through `node scripts/ekg.js ...` or the runtime mutation layer
 - do not hand-edit SQLite and JSON files in parallel
 
-## 8. How to use it in practice
+## 9. How to use it in practice
 
 The most practical workflow is:
 
@@ -292,7 +341,7 @@ In short:
 - when uncertain: `review`
 - for outputs: `report`
 
-## 9. Current limitation
+## 10. Current limitation
 
 Right now, solution evolution is still basic.
 
@@ -315,17 +364,18 @@ This part should be upgraded next into a formal versioning model such as:
 - `PARTIAL`
 - `REJECTED`
 
-## 10. Files worth knowing
+## 11. Files worth knowing
 
 - `config.json`: global config and storage mode
 - `scripts/ekg.js`: CLI entry
 - `hooks/pre-edit.js`: pre-edit reminder hook
+- `backups/*.ekgpack.json.gz`: portable backup packages
 - `ekg-out/ekg.sqlite`: primary data store
 - `ekg-out/ekg.json`: exported graph snapshot
 - `ekg-out/reports/EKG_REPORT.md`: generated report
 - `experiences/`: markdown copies of experience records
 
-## 11. Minimal command set
+## 12. Minimal command set
 
 If you only remember five commands, remember these:
 
@@ -335,4 +385,5 @@ node scripts/ekg.js query "keyword"
 node scripts/ekg.js add --title "..." --problem "..." --solution "..."
 node scripts/ekg.js review
 node scripts/ekg.js report
+node scripts/ekg.js backup-export
 ```

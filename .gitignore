@@ -4,6 +4,7 @@ coverage/
 dist/
 tmp/
 exports/
+backups/
 ekg-out/
 *.sqlite
 *.sqlite-shm
