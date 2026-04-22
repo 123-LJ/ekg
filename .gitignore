@@ -1,0 +1,24 @@
+.ekg.lock
+node_modules/
+coverage/
+dist/
+tmp/
+exports/
+ekg-out/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Local mirrors and agent-generated runtime state
+ekg.json
+state.json
+reports/EKG_REPORT.md
+experiences/*.md
+
+# Local host configs
+.claude/
+.codex/
+
+# Keep directory placeholders
+!experiences/.gitkeep
+!reports/.gitkeep

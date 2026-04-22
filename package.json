@@ -1,0 +1,12 @@
+{
+  "name": "ekg-agent-memory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Experience Knowledge Graph for AI coding agents.",
+  "scripts": {
+    "test": "node tests/run.js",
+    "install:claude": "node scripts/install-host.js --host claude",
+    "install:codex": "node scripts/install-host.js --host codex",
+    "install:all": "node scripts/install-host.js --host all"
+  }
+}
