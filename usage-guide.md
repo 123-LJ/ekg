@@ -68,6 +68,46 @@ Check the latest pipeline state:
 node scripts/ekg.js pipeline-status
 ```
 
+## 3.1 Project context layer
+
+Before daily query/add/review usage, register the current repository once and switch the active project when you change workspaces.
+
+Register a project and activate it:
+
+```powershell
+node scripts/ekg.js project-register --name "Mall App" --root C:\work\mall-app --type vue --tags mall,h5 --activate
+```
+
+List known projects:
+
+```powershell
+node scripts/ekg.js project-list
+```
+
+Switch the active project:
+
+```powershell
+node scripts/ekg.js project-use P001
+```
+
+Check the current active project:
+
+```powershell
+node scripts/ekg.js project-status
+```
+
+Resolve a file hint into the current project root before searching:
+
+```powershell
+node scripts/ekg.js project-resolve src/views/loginRedirect.vue
+```
+
+Why this matters:
+
+- Codex hooks can inject the active project root into the session context
+- file lookup can stay inside the current workspace first
+- broad recursive scans across the whole machine become less necessary
+
 ## 4. Daily workflow
 
 ### 4.1 Add a new experience
@@ -329,13 +369,15 @@ Recommended rule for multi-agent use:
 
 The most practical workflow is:
 
-1. Before editing a file, run `query` or let the hook check related experience.
-2. After solving a real problem, add one clean experience record.
-3. If the experience is still uncertain, mark it for later review.
-4. Periodically run `report` and `pipeline-status` to keep exports updated.
+1. When you enter a repo, run `project-use` or `project-register` once so EKG knows the active workspace.
+2. Before editing a file, run `query` or let the hook check related experience.
+3. After solving a real problem, add one clean experience record.
+4. If the experience is still uncertain, mark it for later review.
+5. Periodically run `report` and `pipeline-status` to keep exports updated.
 
 In short:
 
+- project switch: `project-use`
 - before coding: `query`
 - after solving: `add`
 - when uncertain: `review`

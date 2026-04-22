@@ -4,7 +4,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
   loadRuntime,
-  queryExperiences
+  queryExperiences,
+  getActiveProject,
+  resolveProjectForPath
 } = require("../lib");
 
 const PROMPT_HINT_PATTERN = /(fix|bug|implement|add|edit|modify|refactor|debug|test|route|router|api|component|page|sql|database|hook|script|config|修复|实现|新增|修改|重构|排查|调试|测试|接口|页面|组件|路由|功能|需求)/iu;
@@ -59,6 +61,43 @@ function getPendingCandidates(runtime) {
   return ((((runtime || {}).state || {}).capture || {}).pending_candidates || []);
 }
 
+function buildProjectContextLines(runtime, targetFile) {
+  const lines = [];
+  const state = ((runtime || {}).state || {});
+  const activeProject = getActiveProject(state);
+  const resolved = targetFile
+    ? resolveProjectForPath(state, targetFile)
+    : {
+        project: activeProject,
+        matched_by: activeProject ? "active-project" : "none",
+        resolved_file: ""
+      };
+
+  if (activeProject) {
+    lines.push(`[EKG] Active project: ${activeProject.name} (${activeProject.id})`);
+    lines.push(`[EKG] Active project root: ${activeProject.root}`);
+  }
+
+  if (resolved.project) {
+    lines.push(
+      `[EKG] Resolved project: ${resolved.project.name} (${resolved.project.id}) via ${resolved.matched_by}`
+    );
+    lines.push(`[EKG] Resolved project root: ${resolved.project.root}`);
+    if (resolved.resolved_file) {
+      lines.push(`[EKG] Resolved file path: ${resolved.resolved_file}`);
+    }
+    lines.push("[EKG] Avoid broad recursive scans outside the resolved project root unless that search fails.");
+  } else if (targetFile && activeProject) {
+    lines.push("[EKG] Search inside the active project root first before scanning outside the workspace.");
+  }
+
+  return {
+    activeProject,
+    resolved,
+    lines
+  };
+}
+
 function buildPromptMatchLines(runtime, prompt, targetFile) {
   const matches = queryExperiences(
     runtime.index,
@@ -92,6 +131,7 @@ function buildPromptContext(runtime, prompt) {
   const ekgRoot = slashPath(path.resolve(__dirname, ".."));
   const targetFile = extractPromptTargetFile(prompt);
   const { matches, lines: matchLines } = buildPromptMatchLines(runtime, prompt, targetFile);
+  const projectContext = buildProjectContextLines(runtime, targetFile);
   const pending = getPendingCandidates(runtime);
   const lines = [
     "[EKG] Reminder: query prior experience before editing known files, features, or bug areas.",
@@ -100,6 +140,10 @@ function buildPromptContext(runtime, prompt) {
 
   if (targetFile) {
     lines.push(`[EKG] Prompt target hint: ${targetFile}`);
+  }
+
+  if (projectContext.lines.length) {
+    lines.push(...projectContext.lines);
   }
 
   if (matchLines.length) {
@@ -180,6 +224,7 @@ module.exports = {
   isCodingPrompt,
   touchesManagedStore,
   getPendingCandidates,
+  buildProjectContextLines,
   buildPromptMatchLines,
   buildPromptContext,
   buildBlockedPromptOutput,

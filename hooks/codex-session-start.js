@@ -3,7 +3,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const {
-  loadRuntime
+  loadRuntime,
+  getActiveProject
 } = require("../lib");
 
 function readHookInput() {
@@ -28,6 +29,7 @@ function getPendingCandidates(runtime) {
 
 function buildSessionStartContext(runtime) {
   const ekgRoot = slashPath(path.resolve(__dirname, ".."));
+  const activeProject = getActiveProject((runtime || {}).state || {});
   const pending = getPendingCandidates(runtime);
   const lines = [
     "[EKG] Global workflow is active for this Codex session.",
@@ -35,6 +37,14 @@ function buildSessionStartContext(runtime) {
     "[EKG] After a verified fix, create a capture candidate before promoting formal knowledge.",
     "[EKG] Never edit ekg-out/ekg.sqlite, ekg.json, or state.json directly."
   ];
+
+  if (activeProject) {
+    lines.push(`[EKG] Active project: ${activeProject.name} (${activeProject.id})`);
+    lines.push(`[EKG] Active project root: ${activeProject.root}`);
+    lines.push("[EKG] Prefer searching inside the active project root before broad filesystem scans.");
+  } else {
+    lines.push("[EKG] No active project is selected yet. Register or select one before broad searching.");
+  }
 
   if (pending.length) {
     lines.push(`[EKG] Pending capture candidates: ${pending.length}`);

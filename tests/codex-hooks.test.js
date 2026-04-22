@@ -8,6 +8,7 @@ const {
   isCodingPrompt,
   touchesManagedStore: touchesManagedPromptStore,
   buildBlockedPromptOutput,
+  buildProjectContextLines,
   buildPromptContext,
   buildUserPromptOutput
 } = require("../hooks/codex-user-prompt.js");
@@ -51,6 +52,22 @@ module.exports = function runCodexHooksTest() {
       ]
     },
     state: {
+      projects: {
+        next_project_number: 2,
+        active_project_id: "P001",
+        registry: [
+          {
+            id: "P001",
+            name: "Mall App",
+            root: "C:/work/mall-app",
+            type: "vue",
+            tags: ["mall", "h5"],
+            created_at: "2026-04-22T00:00:00.000Z",
+            updated_at: "2026-04-22T00:00:00.000Z",
+            last_used_at: "2026-04-22T00:00:00.000Z"
+          }
+        ]
+      },
       capture: {
         pending_candidates: [
           {
@@ -64,24 +81,43 @@ module.exports = function runCodexHooksTest() {
 
   const sessionContext = buildSessionStartContext(runtime);
   assert.equal(sessionContext.includes("Global workflow is active"), true);
+  assert.equal(sessionContext.includes("Active project: Mall App"), true);
+  assert.equal(sessionContext.includes("Prefer searching inside the active project root"), true);
   assert.equal(sessionContext.includes("Pending capture candidates: 1"), true);
+
   const sessionOutput = buildSessionStartOutput(runtime);
   assert.equal(sessionOutput.hookSpecificOutput.hookEventName, "SessionStart");
 
-  assert.equal(extractPromptTargetFile("请修改 src/views/loginRedirect.vue"), "src/views/loginRedirect.vue");
-  assert.equal(isCodingPrompt("修复登录重定向问题"), true);
-  assert.equal(touchesManagedPromptStore("请直接修改 ekg.json"), true);
+  assert.equal(
+    extractPromptTargetFile("Please fix src/views/loginRedirect.vue"),
+    "src/views/loginRedirect.vue"
+  );
+  assert.equal(isCodingPrompt("Fix login redirect loop"), true);
+  assert.equal(touchesManagedPromptStore("Please edit ekg.json directly"), true);
 
   const blockedPrompt = buildBlockedPromptOutput();
   assert.equal(blockedPrompt.continue, false);
   assert.equal(blockedPrompt.stopReason.includes("must not be edited directly"), true);
 
-  const promptContext = buildPromptContext(runtime, "请修复 src/views/loginRedirect.vue 的登录重定向问题");
+  const projectContext = buildProjectContextLines(runtime, "src/views/loginRedirect.vue");
+  assert.equal(projectContext.activeProject.id, "P001");
+  assert.equal(projectContext.resolved.project.id, "P001");
+  assert.equal(projectContext.lines.some((line) => line.includes("Resolved project root")), true);
+
+  const promptContext = buildPromptContext(
+    runtime,
+    "Please fix src/views/loginRedirect.vue login redirect issue"
+  );
   assert.equal(promptContext.targetFile, "src/views/loginRedirect.vue");
   assert.equal(promptContext.matches.length, 1);
   assert.equal(promptContext.context.includes("E100"), true);
+  assert.equal(promptContext.context.includes("Active project: Mall App"), true);
+  assert.equal(
+    promptContext.context.includes("Avoid broad recursive scans outside the resolved project root"),
+    true
+  );
 
-  const promptOutput = buildUserPromptOutput(runtime, "修复 src/views/loginRedirect.vue");
+  const promptOutput = buildUserPromptOutput(runtime, "Fix src/views/loginRedirect.vue");
   assert.equal(promptOutput.hookSpecificOutput.hookEventName, "UserPromptSubmit");
 
   assert.equal(

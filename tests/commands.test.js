@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const commands = require("../lib/commands");
 
 function captureLogs(fn) {
@@ -15,6 +18,11 @@ function captureLogs(fn) {
   }
 
   return lines.join("\n");
+}
+
+function ensureFile(filePath, content = "") {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content);
 }
 
 function createRuntime() {
@@ -76,6 +84,11 @@ function createRuntime() {
           { name: "ingest", status: "ok", message: "loaded input" },
           { name: "report", status: "ok", message: "generated report" }
         ]
+      },
+      projects: {
+        next_project_number: 1,
+        active_project_id: "",
+        registry: []
       }
     }
   };
@@ -83,6 +96,12 @@ function createRuntime() {
 
 module.exports = function runCommandsTest() {
   const runtime = createRuntime();
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ekg-commands-projects-"));
+  const mallRoot = path.join(tmpRoot, "mall-app");
+  const adminRoot = path.join(tmpRoot, "admin-app");
+
+  ensureFile(path.join(mallRoot, "src", "views", "loginRedirect.vue"), "<template />\n");
+  fs.mkdirSync(adminRoot, { recursive: true });
 
   const helpOutput = captureLogs(() => {
     commands.printUsage();
@@ -90,6 +109,8 @@ module.exports = function runCommandsTest() {
   assert.equal(helpOutput.includes("pipeline-status"), true);
   assert.equal(helpOutput.includes("backup-export"), true);
   assert.equal(helpOutput.includes("backup-inspect"), true);
+  assert.equal(helpOutput.includes("project-register"), true);
+  assert.equal(helpOutput.includes("project-resolve"), true);
 
   const statsOutput = captureLogs(() => {
     commands.commandStats(runtime);
@@ -147,6 +168,76 @@ module.exports = function runCommandsTest() {
   });
   assert.equal(reviewConfirmOutput.includes("\"confidence\": \"CONFIRMED\""), true);
 
+  const projectRegisterOutput = captureLogs(() => {
+    commands.commandProjectRegister(runtime, {
+      positional: ["project-register"],
+      options: {
+        name: "Mall App",
+        root: mallRoot,
+        type: "vue",
+        tags: "mall,h5"
+      }
+    }, { skipSave: true });
+  });
+  assert.equal(projectRegisterOutput.includes("\"id\": \"P001\""), true);
+  assert.equal(runtime.state.projects.active_project_id, "P001");
+
+  const secondProjectOutput = captureLogs(() => {
+    commands.commandProjectRegister(runtime, {
+      positional: ["project-register"],
+      options: {
+        name: "Admin App",
+        root: adminRoot,
+        type: "vue",
+        tags: "admin",
+        activate: false
+      }
+    }, { skipSave: true });
+  });
+  assert.equal(secondProjectOutput.includes("\"id\": \"P002\""), true);
+  assert.equal(runtime.state.projects.registry.length, 2);
+
+  const projectListOutput = captureLogs(() => {
+    commands.commandProjectList(runtime);
+  });
+  assert.equal(projectListOutput.includes("* P001: Mall App"), true);
+  assert.equal(projectListOutput.includes("- P002: Admin App"), true);
+
+  const projectUseOutput = captureLogs(() => {
+    commands.commandProjectUse(runtime, {
+      positional: ["project-use", "P002"],
+      options: {}
+    }, { skipSave: true });
+  });
+  assert.equal(projectUseOutput.includes("\"id\": \"P002\""), true);
+  assert.equal(runtime.state.projects.active_project_id, "P002");
+
+  const projectStatusOutput = captureLogs(() => {
+    commands.commandProjectStatus(runtime, {
+      positional: ["project-status"],
+      options: {}
+    });
+  });
+  assert.equal(projectStatusOutput.includes("\"id\": \"P002\""), true);
+  assert.equal(projectStatusOutput.includes("\"active\": true"), true);
+
+  captureLogs(() => {
+    commands.commandProjectUse(runtime, {
+      positional: ["project-use", "P001"],
+      options: {}
+    }, { skipSave: true });
+  });
+
+  const projectResolveOutput = captureLogs(() => {
+    commands.commandProjectResolve(runtime, {
+      positional: ["project-resolve", "src/views/loginRedirect.vue"],
+      options: {}
+    });
+  });
+  assert.equal(projectResolveOutput.includes("\"matched_by\": \"active-project-existing-file\""), true);
+  assert.equal(projectResolveOutput.includes("Mall App"), true);
+  assert.equal(projectResolveOutput.includes("loginRedirect.vue"), true);
+
   const pipelineOutput = captureLogs(() => {
     commands.commandPipelineStatus(runtime);
   });
@@ -167,4 +258,6 @@ module.exports = function runCommandsTest() {
     () => commands.main(["unsupported-command"]),
     /unsupported command/i
   );
+
+  fs.rmSync(tmpRoot, { recursive: true, force: true });
 };
