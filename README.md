@@ -1,70 +1,62 @@
-# EKG
+---
+name: ekg-docs-index
+description: EKG 相关设计文档入口，面向需求澄清、技术方案制定、实现拆解和后续迭代维护
+type: design
+version: v1.0
+created_at: 2026-04-21
+owner: Team Lead / Architect
+status: draft
+---
 
-Experience Knowledge Graph for AI coding agents.
+# EKG 文档导航
 
-## What it does
+## 1. 定位
 
-- records real debugging experience
-- queries past fixes before editing code
-- injects short reminders into the agent context
-- creates reviewable capture candidates after a task ends
-- keeps a SQLite primary store with JSON/report mirrors for compatibility
+`EKG`（Experience Knowledge Graph）是一个面向 AI 编码协作的经验知识图谱工具。
 
-## Supported agents
+它不记录“代码长什么样”，而是记录：
 
-- Claude: full automatic hook integration
-- Codex: automatic `model_instructions_file` integration, plus experimental hook template support
-- Other agents: can reuse the CLI and installer templates
+- 之前踩过什么坑
+- 为什么会踩坑
+- 当时是怎么解决的
+- 哪些经验只适用于当前项目，哪些可以跨项目复用
 
-## Quick start
+这套文档用于指导 `tools/ekg` 后续从概念设计进入可实现阶段。
 
-```powershell
-git clone <your-repo-url> ekg-agent-memory
-cd ekg-agent-memory
-node scripts\install-host.js --host claude
-node scripts\install-host.js --host codex
-node scripts/ekg.js help
-```
+## 2. 文档清单
 
-## Common commands
+| 文档 | 作用 |
+|------|------|
+| [需求文档.md](./需求文档.md) | 定义 EKG 的业务目标、范围、功能与验收标准 |
+| [技术架构.md](./技术架构.md) | 定义架构选型、Pipeline、目录结构、核心机制与风险 |
+| [任务分解.md](./任务分解.md) | 把 EKG 拆成可执行阶段任务和门禁 |
+| [命令与数据模型.md](./命令与数据模型.md) | 定义命令协议、节点/边结构、状态枚举与 Hook 注入规则 |
+| [SKILL.md](./SKILL.md) | 当前 skill 入口说明，面向未来 AI 使用 |
 
-```powershell
-node scripts/ekg.js storage-status
-node scripts/ekg.js query "redirect"
-node scripts/ekg.js explain loginRedirect
-node scripts/ekg.js add --title "..." --problem "..." --solution "..."
-node scripts/ekg.js review
-node scripts/ekg.js report
-```
+## 3. 当前结论
 
-## Host flow
+- EKG 借鉴 Graphify 的不是“代码图谱”本体，而是：
+  - 分阶段 Pipeline
+  - 置信度标签
+  - 增量缓存
+  - Hook 注入
+  - 图结构分析
+- EKG 在 Phase 1 不追求“全自动智能体知识系统”，而优先落地：
+  - 手动经验录入
+  - 结构化存储
+  - 轻量查询
+  - 分级注入
+  - 冷启动种子
 
-- `PreToolUse`: query related experience before editing
-- `Stop`: create a review candidate and gate once when a new candidate appears
-- `SubagentStop`: create a review candidate without blocking by default
+## 4. 推荐实施顺序
 
-## Storage
+1. 先实现本地文件化 Phase 1。
+2. 先把“经验索引”做可靠，再升级成“知识图谱智能化”。
+3. 聚类、MCP、自动抽取、可视化都放在 Phase 2/3，不抢 Phase 1 的稳定性。
 
-- primary: `ekg-out/ekg.sqlite`
-- export: `ekg-out/ekg.json`
-- state: `ekg-out/state.json`
-- report: `ekg-out/reports/EKG_REPORT.md`
+## 5. 当前状态
 
-## Docs
+- 已完成：Skill 入口定义
+- 已完成：需求与架构文档首版
+- 下一步：实现 Phase 1 目录结构、`ekg.json` schema、命令原型和 PreToolUse Hook
 
-- [Usage Guide](./usage-guide.md)
-- [Host Integration](./host-integration.md)
-- [GitHub Publishing](./github-publishing.md)
-- [Skill Guide](./SKILL.md)
-
-## Validation
-
-```powershell
-node tests\run.js
-```
-
-## Notes
-
-- Do not commit local agent state, sqlite databases, or generated mirrors unless you explicitly want to publish sample data.
-- `Claude` gets real hook automation.
-- `Codex` gets an official `model_instructions_file` integration and a safe experimental hook template.
