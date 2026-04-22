@@ -36,6 +36,7 @@ function createRuntime() {
       }
     },
     storagePaths: {
+      OUTPUT_DIR: "C:/Users/Administrator/Desktop/skill/tools/ekg/ekg-out",
       REPORT_FILE: "C:/Users/Administrator/Desktop/skill/tools/ekg/ekg-out/reports/EKG_REPORT.md"
     },
     index: {
@@ -111,6 +112,7 @@ module.exports = function runCommandsTest() {
   assert.equal(helpOutput.includes("backup-inspect"), true);
   assert.equal(helpOutput.includes("project-register"), true);
   assert.equal(helpOutput.includes("project-resolve"), true);
+  assert.equal(helpOutput.includes("node scripts/ekg.js panel"), true);
 
   const statsOutput = captureLogs(() => {
     commands.commandStats(runtime);
@@ -253,6 +255,15 @@ module.exports = function runCommandsTest() {
     commands.commandReport(runtime, { skipSave: true });
   });
   assert.equal(reportOutput.includes("ekg-out/reports/EKG_REPORT.md"), true);
+
+  const panelOutput = captureLogs(() => {
+    commands.commandPanel(runtime, {
+      positional: ["panel"],
+      options: {}
+    });
+  });
+  assert.equal(panelOutput.includes("\"action\": \"panel\""), true);
+  assert.equal(panelOutput.includes("ekg-out/panel/index.html"), true);
 
   assert.throws(
     () => commands.main(["unsupported-command"]),

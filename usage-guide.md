@@ -235,6 +235,37 @@ This refreshes:
 - JSON indexes
 - pipeline state
 
+### 4.8 Generate the local panel
+
+Generate a browser-openable EKG dashboard:
+
+```powershell
+node scripts/ekg.js panel
+```
+
+Generate it and open it directly:
+
+```powershell
+node scripts/ekg.js panel --open
+```
+
+Default output:
+
+- `ekg-out/panel/index.html`
+
+The panel currently shows:
+
+- overall stats
+- recent experiences
+- browser-side query helper
+- experience detail drawer
+- related experience suggestions
+- graph summary
+- top tags / techs / file anchors
+- registered projects and active project
+- pending capture candidates
+- latest pipeline status
+
 ## 5. How the hook is used
 
 There is a pre-edit hook at:
@@ -381,7 +412,7 @@ In short:
 - before coding: `query`
 - after solving: `add`
 - when uncertain: `review`
-- for outputs: `report`
+- for outputs: `report` / `panel`
 
 ## 10. Current limitation
 
@@ -415,6 +446,7 @@ This part should be upgraded next into a formal versioning model such as:
 - `ekg-out/ekg.sqlite`: primary data store
 - `ekg-out/ekg.json`: exported graph snapshot
 - `ekg-out/reports/EKG_REPORT.md`: generated report
+- `ekg-out/panel/index.html`: generated local dashboard
 - `experiences/`: markdown copies of experience records
 
 ## 12. Minimal command set
@@ -427,5 +459,6 @@ node scripts/ekg.js query "keyword"
 node scripts/ekg.js add --title "..." --problem "..." --solution "..."
 node scripts/ekg.js review
 node scripts/ekg.js report
+node scripts/ekg.js panel
 node scripts/ekg.js backup-export
 ```
