@@ -13,8 +13,12 @@ const {
   collectList,
   normalizeFileList,
   firstNonEmpty,
-  createCaptureCandidate
+  createCaptureCandidate,
+  evaluateCandidateRisk
 } = require("../lib/capture");
+const {
+  commandCaptureAccept
+} = require("../lib/commands");
 
 function readHookInput() {
   try {
@@ -159,13 +163,20 @@ function shouldCaptureCandidate(candidateInput, captureConfig = {}) {
 
 function formatAdditionalContext(candidate, created) {
   const actionText = created ? "captured" : "refreshed";
+  const reviewGate = candidate.review_gate || null;
+  const riskText = reviewGate ? `[EKG] review gate: ${reviewGate.riskLevel}` : "";
+  const reasonText = reviewGate && reviewGate.reasons && reviewGate.reasons.length
+    ? `[EKG] human review required: ${reviewGate.reasons.join("; ")}`
+    : "";
   return [
     `[EKG] ${actionText} candidate ${candidate.id} for later review`,
     `[EKG] title: ${candidate.title}`,
     `[EKG] files: ${((candidate.anchors || {}).files || []).join(", ") || "n/a"}`,
+    riskText,
+    reasonText,
     `[EKG] Review with \`node scripts/ekg.js capture-status ${candidate.id}\``,
     `[EKG] Accept with \`node scripts/ekg.js capture-accept ${candidate.id} --confirm\` when the solution is verified.`
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function formatConsoleOutput(candidate, created) {
@@ -173,7 +184,8 @@ function formatConsoleOutput(candidate, created) {
     candidate_id: candidate.id,
     created,
     title: candidate.title,
-    files: ((candidate.anchors || {}).files || [])
+    files: ((candidate.anchors || {}).files || []),
+    review_gate: candidate.review_gate || null
   }, null, 2);
 }
 
@@ -200,15 +212,63 @@ function shouldBlockOnCandidate(result, hookInput, captureConfig = {}) {
 }
 
 function formatBlockReason(candidate) {
+  const reviewGate = candidate.review_gate || null;
+  const riskSuffix = reviewGate && reviewGate.reasons && reviewGate.reasons.length
+    ? ` Human review is required because: ${reviewGate.reasons.join("; ")}.`
+    : "";
   return [
     `EKG captured a new review candidate ${candidate.id}.`,
     `Review it with node scripts/ekg.js capture-status ${candidate.id}.`,
     `Accept it with node scripts/ekg.js capture-accept ${candidate.id} --confirm when the fix is verified.`,
-    `Dismiss it with node scripts/ekg.js capture-dismiss ${candidate.id} if it is noise.`
+    `Dismiss it with node scripts/ekg.js capture-dismiss ${candidate.id} if it is noise.${riskSuffix}`
   ].join(" ");
 }
 
+function tryAutoAcceptCandidate(runtime, candidate, captureConfig = {}) {
+  const reviewGate = evaluateCandidateRisk(candidate, captureConfig.autoAccept || {}, {
+    eventName: ((candidate.origin || {}).event) || candidate.event || ""
+  });
+  candidate.review_gate = reviewGate;
+
+  if (!reviewGate.autoAcceptEligible) {
+    return {
+      candidate,
+      autoAccepted: false,
+      reviewGate
+    };
+  }
+
+  const parsed = {
+    positional: ["capture-accept", candidate.id],
+    options: {
+      id: candidate.id,
+      confirm: true
+    }
+  };
+  commandCaptureAccept(runtime, parsed, {
+    skipSave: true
+  });
+  const acceptedExperience = ((runtime.index || {}).nodes || []).slice(-1)[0] || null;
+  return {
+    candidate,
+    autoAccepted: true,
+    reviewGate,
+    acceptedExperience
+  };
+}
+
 function buildHookOutput(result, hookInput, captureConfig = {}) {
+  if (result.autoAccepted) {
+    const experienceId = ((result.acceptedExperience || {}).id) || "unknown";
+    return {
+      additionalContext: [
+        `[EKG] auto-accepted low-risk candidate ${result.candidate.id} into ${experienceId}.`,
+        `[EKG] auto-accept policy classified this candidate as low risk.`
+      ].join("\n"),
+      suppressOutput: true
+    };
+  }
+
   const payload = {
     additionalContext: formatAdditionalContext(result.candidate, result.created),
     suppressOutput: true
@@ -247,7 +307,15 @@ function main(argv = process.argv.slice(2)) {
       defaultConfidence: captureConfig.defaultConfidence || "UNCERTAIN",
       defaultStatus: captureConfig.defaultStatus || "NEEDS_REVIEW"
     });
+    result = {
+      ...result,
+      ...tryAutoAcceptCandidate(lockedRuntime, result.candidate, captureConfig)
+    };
     saveState(lockedRuntime, lockedRuntime.state, { skipLock: true });
+    if (result.autoAccepted) {
+      saveState(lockedRuntime, lockedRuntime.state, { skipLock: true });
+      saveRuntime(lockedRuntime, { skipLock: true });
+    }
   });
 
   if (!result) {
@@ -278,6 +346,7 @@ module.exports = {
   formatAdditionalContext,
   shouldBlockOnCandidate,
   formatBlockReason,
+  tryAutoAcceptCandidate,
   buildHookOutput,
   formatConsoleOutput,
   main

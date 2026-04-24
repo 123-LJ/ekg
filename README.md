@@ -4,12 +4,22 @@ EKG is a lightweight local memory toolkit for coding agents and engineering work
 
 It helps humans and agents reuse **verified engineering experience** — bugs, fixes, decisions, patterns — instead of rediscovering the same lessons in every session.
 
+## Current stage
+
+EKG is currently tracked as **Phase 2+**:
+
+- Phase 1 is complete: local experience storage, CLI, query, report, and basic hooks are usable.
+- Phase 2 is mostly implemented: capture/review, host integration, SQLite storage, backup/restore, project context, and write locking are available.
+- Phase 3 is in preview: graph paths, lightweight analysis, panel, and graph view exist; clustering/MCP/advanced analysis are still future work.
+
 ## What you get
 
 - **Pre-edit recall**: query prior experience before touching known files or hotspots
 - **Post-task capture**: create reviewable capture candidates after work is done
+- **Automatic ingest prototype**: turn task summaries or git commit signals into reviewable candidates
 - **SQLite primary storage** with JSON / Markdown mirrors for portability
 - **Project context layer**: active project root resolution for Codex / Claude workflows
+- **Stale-check prototype**: detect changed or missing anchor files and move experience back into review
 - **Portable backup package**: export and restore EKG across machines
 - **Local HTML panel**: generate a browser-openable dashboard from current EKG data
 
@@ -32,6 +42,8 @@ node scripts/install-host.js --host codex --codex-mode strong
 # Use the CLI
 node scripts/ekg.js help
 node scripts/ekg.js query "redirect"
+node scripts/ekg.js ingest --source task --task "Fix redirect loop" --summary "Exclude callback route"
+node scripts/ekg.js stale-check --dry-run
 node scripts/ekg.js panel
 ```
 
@@ -76,6 +88,7 @@ Current panel features:
 ## Documentation
 
 - [Usage Guide](./usage-guide.md)
+- [Status](./状态说明.md)
 - [Panel Architecture](./docs/ARCHITECTURE.md)
 - [Panel UI Spec](./docs/EKG-UI交互设计规范.md)
 - [Host Integration](./host-integration.md)

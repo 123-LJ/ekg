@@ -95,7 +95,7 @@ function createRuntime() {
   };
 }
 
-module.exports = function runCommandsTest() {
+module.exports = async function runCommandsTest() {
   const runtime = createRuntime();
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ekg-commands-projects-"));
   const mallRoot = path.join(tmpRoot, "mall-app");
@@ -112,6 +112,8 @@ module.exports = function runCommandsTest() {
   assert.equal(helpOutput.includes("backup-inspect"), true);
   assert.equal(helpOutput.includes("project-register"), true);
   assert.equal(helpOutput.includes("project-resolve"), true);
+  assert.equal(helpOutput.includes("node scripts/ekg.js ingest"), true);
+  assert.equal(helpOutput.includes("node scripts/ekg.js stale-check"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js panel"), true);
 
   const statsOutput = captureLogs(() => {
@@ -159,6 +161,20 @@ module.exports = function runCommandsTest() {
   });
   assert.equal(addOutput.includes("\"id\": \"E002\""), true);
   assert.equal(runtime.index.nodes.length, 2);
+
+  const ingestOutput = captureLogs(() => {
+    commands.commandIngest(runtime, {
+      positional: ["ingest"],
+      options: {
+        source: "task",
+        task: "修复登录重定向问题",
+        summary: "排除回调页和当前触发路径",
+        file: "src/views/loginRedirect.vue"
+      }
+    }, { skipSave: true });
+  });
+  assert.equal(ingestOutput.includes("\"action\": \"ingest\""), true);
+  assert.equal(ingestOutput.includes("\"candidate_count\": 1"), true);
 
   const reviewConfirmOutput = captureLogs(() => {
     commands.commandReview(runtime, {
@@ -240,6 +256,16 @@ module.exports = function runCommandsTest() {
   assert.equal(projectResolveOutput.includes("Mall App"), true);
   assert.equal(projectResolveOutput.includes("loginRedirect.vue"), true);
 
+  const staleBaselineOutput = captureLogs(() => {
+    commands.commandStaleCheck(runtime, {
+      positional: ["stale-check"],
+      options: {
+        baseline: true
+      }
+    }, { skipSave: true, skipExperienceFile: true });
+  });
+  assert.equal(staleBaselineOutput.includes("\"mode\": \"baseline\""), true);
+
   const pipelineOutput = captureLogs(() => {
     commands.commandPipelineStatus(runtime);
   });
@@ -257,7 +283,7 @@ module.exports = function runCommandsTest() {
   assert.equal(reportOutput.includes("ekg-out/reports/EKG_REPORT.md"), true);
 
   const panelOutput = captureLogs(() => {
-    commands.commandPanel(runtime, {
+    return commands.commandPanel(runtime, {
       positional: ["panel"],
       options: {}
     });
@@ -265,7 +291,7 @@ module.exports = function runCommandsTest() {
   assert.equal(panelOutput.includes("\"action\": \"panel\""), true);
   assert.equal(panelOutput.includes("ekg-out/panel/index.html"), true);
 
-  assert.throws(
+  await assert.rejects(
     () => commands.main(["unsupported-command"]),
     /unsupported command/i
   );

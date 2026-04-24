@@ -3,7 +3,8 @@ const commands = require("../lib/commands");
 const {
   createCaptureCandidate,
   listCaptureCandidates,
-  findCaptureCandidate
+  findCaptureCandidate,
+  evaluateCandidateRisk
 } = require("../lib/capture");
 
 function captureLogs(fn) {
@@ -30,6 +31,23 @@ function createRuntime() {
       },
       query: {
         defaultLimit: 5
+      },
+      capture: {
+        autoAccept: {
+          enabled: true,
+          maxSummaryLength: 180,
+          allowedSources: ["host/auto-stop", "host/auto"],
+          allowedTypes: ["workflow"],
+          allowedLevels: ["L1"],
+          requireFileAnchor: true,
+          requireProblemAndSolution: true,
+          blockIfTagsPresent: true,
+          blockIfTechsPresent: true,
+          blockIfRelationsPresent: true,
+          blockIfRootCausePresent: true,
+          blockIfCommitsPresent: true,
+          blockOnEvents: ["Stop", "task-complete"]
+        }
       }
     },
     storagePaths: {
@@ -61,6 +79,11 @@ module.exports = function runCaptureTest() {
   assert.equal(firstResult.candidate.id, "C001");
   assert.equal(listCaptureCandidates(runtime.state).length, 1);
   assert.equal(findCaptureCandidate(runtime.state, "Footer navigation fix").id, "C001");
+  const lowRisk = evaluateCandidateRisk(firstResult.candidate, runtime.config.capture.autoAccept, {
+    eventName: "Stop"
+  });
+  assert.equal(lowRisk.autoAcceptEligible, false);
+  assert.equal(lowRisk.reasons.some((item) => item.includes("tags")), true);
 
   const duplicateResult = createCaptureCandidate(runtime.state, {
     title: "Footer navigation fix",
@@ -75,6 +98,22 @@ module.exports = function runCaptureTest() {
   assert.equal(duplicateResult.created, false);
   assert.equal(listCaptureCandidates(runtime.state).length, 1);
 
+  const plainCandidate = createCaptureCandidate(runtime.state, {
+    title: "Simple file anchor note",
+    task: "记录一个简单的低风险工作流候选",
+    summary: "Keep a short verified workflow note with a single file anchor.",
+    files: ["docs/simple-note.md"],
+    source: "host/auto-stop"
+  }, {
+    pendingLimit: 10
+  });
+
+  const highConfidenceLowRisk = evaluateCandidateRisk(plainCandidate.candidate, runtime.config.capture.autoAccept, {
+    eventName: "Stop"
+  });
+  assert.equal(highConfidenceLowRisk.autoAcceptEligible, true);
+  assert.equal(highConfidenceLowRisk.riskLevel, "low");
+
   const statusOutput = captureLogs(() => {
     commands.commandCaptureStatus(runtime, {
       positional: ["capture-status"],
@@ -83,6 +122,7 @@ module.exports = function runCaptureTest() {
   });
   assert.equal(statusOutput.includes("C001"), true);
   assert.equal(statusOutput.includes("Footer navigation fix"), true);
+  assert.equal(statusOutput.includes("risk:"), true);
 
   const acceptOutput = captureLogs(() => {
     commands.commandCaptureAccept(runtime, {
@@ -100,7 +140,8 @@ module.exports = function runCaptureTest() {
   assert.equal(runtime.index.nodes.length, 1);
   assert.equal(runtime.index.nodes[0].title, "Footer navigation fix");
   assert.equal(runtime.index.nodes[0].confidence, "CONFIRMED");
-  assert.equal(listCaptureCandidates(runtime.state).length, 0);
+  assert.equal(findCaptureCandidate(runtime.state, "C001"), null);
+  assert.equal(findCaptureCandidate(runtime.state, "Simple file anchor note").id, "C002");
 
   createCaptureCandidate(runtime.state, {
     title: "Dismiss me",
@@ -113,12 +154,13 @@ module.exports = function runCaptureTest() {
 
   const dismissOutput = captureLogs(() => {
     commands.commandCaptureDismiss(runtime, {
-      positional: ["capture-dismiss", "C002"],
+      positional: ["capture-dismiss", "C003"],
       options: {}
     }, {
       skipSave: true
     });
   });
   assert.equal(dismissOutput.includes("\"dismissed\": true"), true);
-  assert.equal(listCaptureCandidates(runtime.state).length, 0);
+  assert.equal(listCaptureCandidates(runtime.state).length, 1);
+  assert.equal(findCaptureCandidate(runtime.state, "Simple file anchor note").id, "C002");
 };

@@ -2,14 +2,48 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const http = require("node:http");
+const vm = require("node:vm");
 const {
   buildPanelViewModel,
   buildCytoscapeGraph,
   generatePanelHtml,
-  writePanel
+  writePanel,
+  startPanelServer
 } = require("../lib/panel");
 
-module.exports = function runPanelTest() {
+function requestJson(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const request = http.request({
+      method: options.method || "GET",
+      hostname: target.hostname,
+      port: target.port,
+      path: target.pathname + target.search,
+      headers: options.headers || {}
+    }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        const contentType = String(response.headers["content-type"] || "");
+        resolve({
+          statusCode: response.statusCode || 0,
+          headers: response.headers,
+          body: raw,
+          json: contentType.includes("application/json") && raw ? JSON.parse(raw) : null
+        });
+      });
+    });
+    request.on("error", reject);
+    if (options.body) {
+      request.write(options.body);
+    }
+    request.end();
+  });
+}
+
+module.exports = async function runPanelTest() {
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ekg-panel-"));
   const runtime = {
     config: {
@@ -105,7 +139,28 @@ module.exports = function runPanelTest() {
             problem: "Need to confirm path handling",
             solution: "Verify project root restriction",
             status: "NEEDS_REVIEW",
-            confidence: "UNCERTAIN"
+            confidence: "UNCERTAIN",
+            tags: ["routing"],
+            anchors: {
+              files: ["lib/project/index.js"]
+            },
+            origin: {
+              event: "Stop"
+            }
+          },
+          {
+            id: "C002",
+            title: "Simple docs note",
+            problem: "Keep a short doc note",
+            solution: "Record a short verified note with a file anchor.",
+            status: "NEEDS_REVIEW",
+            confidence: "UNCERTAIN",
+            anchors: {
+              files: ["docs/simple-note.md"]
+            },
+            origin: {
+              event: "Stop"
+            }
           }
         ]
       },
@@ -123,7 +178,9 @@ module.exports = function runPanelTest() {
   const view = buildPanelViewModel(runtime);
   assert.equal(view.stats.experience_count, 2);
   assert.equal(view.active_project.id, "P001");
-  assert.equal(view.pending_candidates.length, 1);
+  assert.equal(view.pending_candidates.length, 2);
+  assert.equal(view.pending_candidates.some((candidate) => candidate.review_gate.riskLevel === "high"), true);
+  assert.equal(view.pending_candidates.some((candidate) => candidate.review_gate.riskLevel === "low"), true);
   assert.equal(view.top_tags[0].name, "routing");
   assert.equal(view.graph_view.nodes.some((node) => node.data.id === "E001"), true);
   assert.equal(view.graph_view.edges.length > 0, true);
@@ -133,15 +190,40 @@ module.exports = function runPanelTest() {
   assert.equal(graph.nodes.some((node) => node.data.nodeType === "tag"), true);
 
   const html = generatePanelHtml(runtime);
+  const scriptMatch = html.match(/<script>\s*([\s\S]*)\s*<\/script>\s*<\/body>/);
+  assert.equal(Boolean(scriptMatch), true);
+  assert.doesNotThrow(() => {
+    new vm.Script(scriptMatch[1]);
+  });
   assert.equal(html.includes("EKG Panel"), true);
   assert.equal(html.includes("Fix login redirect loop"), true);
   assert.equal(html.includes("lib/project/index.js"), true);
   assert.equal(html.includes("Capture Review Queue"), true);
+  assert.equal(html.includes("Review Workspace"), true);
+  assert.equal(html.includes("Review Checklist"), true);
+  assert.equal(html.includes("Human Confirmation Required"), true);
+  assert.equal(html.includes("Only show high-risk candidates"), true);
+  assert.equal(html.includes("Filter review queue by file path"), true);
+  assert.equal(html.includes("Accept Into Graph"), true);
+  assert.equal(html.includes("Dismiss Candidate"), true);
+  assert.equal(html.includes("capture-dismiss C001"), true);
+  assert.equal(html.includes("candidate-feedback"), true);
+  assert.equal(html.includes("Accept Command Copied"), true);
+  assert.equal(html.includes("Dismiss Command Copied"), true);
+  assert.equal(html.includes("data-feedback-for=\"C001\""), true);
+  assert.equal(html.includes("data-command-box-for=\"C001\""), true);
+  assert.equal(html.includes("panelRuntimeConfig"), true);
+  assert.equal(html.includes("reviewHighRiskOnly"), true);
+  assert.equal(html.includes("reviewFileFilter"), true);
+  assert.equal(html.includes("data-risk-level=\"high\""), true);
+  assert.equal(html.includes("data-file-haystack=\"lib/project/index.js\""), true);
   assert.equal(html.includes("Browser Query Helper"), true);
   assert.equal(html.includes("Experience details"), true);
   assert.equal(html.includes("Related Experiences"), true);
   assert.equal(html.includes("Open details"), true);
   assert.equal(html.includes("cytoscape.min.js"), true);
+  assert.equal(html.includes("reviewPanel"), true);
+  assert.equal(html.includes("Review</button>"), true);
   assert.equal(html.includes("Graph View"), true);
   assert.equal(html.includes("Knowledge Graph View"), true);
   assert.equal(html.includes("cy-container"), true);
@@ -149,6 +231,46 @@ module.exports = function runPanelTest() {
   const result = writePanel(runtime);
   assert.equal(fs.existsSync(result.output_file), true);
   assert.equal(result.relative_output_file.endsWith("ekg-out/panel/index.html"), true);
+
+  const serverRuntime = structuredClone(runtime);
+  const serverHandle = await startPanelServer({
+    runtime: serverRuntime,
+    handleAction: ({ candidateId, action }) => {
+      serverRuntime.state.capture.pending_candidates = (serverRuntime.state.capture.pending_candidates || [])
+        .filter((candidate) => candidate.id !== candidateId);
+      return {
+        candidate_id: candidateId,
+        action
+      };
+    }
+  });
+
+  try {
+    const rootResponse = await requestJson(serverHandle.url, {
+      headers: {
+        Accept: "text/html"
+      }
+    });
+    assert.equal(rootResponse.statusCode, 200);
+    assert.equal(rootResponse.body.includes("/api"), true);
+    assert.equal(rootResponse.body.includes("panelRuntimeConfig"), true);
+
+    const actionResponse = await requestJson(`${serverHandle.url}api/capture-action`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        candidate_id: "C001",
+        action: "dismiss"
+      })
+    });
+    assert.equal(actionResponse.statusCode, 200);
+    assert.equal(actionResponse.json.ok, true);
+    assert.equal(actionResponse.json.pending_candidate_count, 1);
+  } finally {
+    await serverHandle.close();
+  }
 
   fs.rmSync(tmpRoot, { recursive: true, force: true });
 };

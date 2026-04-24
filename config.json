@@ -57,6 +57,21 @@
     "defaultLevel": "L1",
     "defaultConfidence": "UNCERTAIN",
     "defaultStatus": "NEEDS_REVIEW",
+    "autoAccept": {
+      "enabled": true,
+      "maxSummaryLength": 180,
+      "allowedSources": ["host/auto-stop", "host/auto"],
+      "allowedTypes": ["workflow"],
+      "allowedLevels": ["L1"],
+      "requireFileAnchor": true,
+      "requireProblemAndSolution": true,
+      "blockIfTagsPresent": true,
+      "blockIfTechsPresent": true,
+      "blockIfRelationsPresent": true,
+      "blockIfRootCausePresent": true,
+      "blockIfCommitsPresent": true,
+      "blockOnEvents": ["Stop", "task-complete"]
+    },
     "gate": {
       "enabled": true,
       "blockOnEvents": ["Stop"]

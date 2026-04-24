@@ -193,6 +193,34 @@ Use `review` when:
 - the solution might be outdated
 - the result needs manual approval
 
+### 4.6 Ingest automatic candidate skeleton
+
+EKG now has a Phase 2 prototype command that creates **reviewable candidates** instead of writing formal experiences directly.
+
+Ingest from a task summary:
+
+```powershell
+node scripts/ekg.js ingest `
+  --source task `
+  --task "修复登录重定向问题" `
+  --summary "排除回调页和当前触发路径" `
+  --file src/views/loginRedirect.vue `
+  --tags auth,redirect
+```
+
+Ingest from recent git commits:
+
+```powershell
+node scripts/ekg.js ingest --source commit --since HEAD~5
+```
+
+Current behavior:
+
+- output goes to `capture candidate`
+- default status is `NEEDS_REVIEW`
+- default confidence is `UNCERTAIN`
+- you still need `capture-accept --confirm` before it becomes a formal experience
+
 ### 4.7 Review host-generated capture candidates
 
 If the host integration is enabled, task-end hooks will create pending candidates first.
@@ -223,7 +251,34 @@ node scripts/ekg.js capture-dismiss C001
 
 On the main `Stop` flow, the hook will now stop once for a brand-new candidate so you do not forget the review step.
 
-### 4.6 Rebuild and export report
+### 4.8 Stale baseline and stale check
+
+EKG now has a first-pass stale detection skeleton for file anchors.
+
+Initialize or refresh anchor baselines:
+
+```powershell
+node scripts/ekg.js stale-check --baseline
+```
+
+Run a dry-run stale scan:
+
+```powershell
+node scripts/ekg.js stale-check --dry-run
+```
+
+Apply the result and move affected experiences into `NEEDS_REVIEW`:
+
+```powershell
+node scripts/ekg.js stale-check
+```
+
+Current first version checks:
+
+- missing anchor files
+- content changes for files that already have a stored baseline
+
+### 4.9 Rebuild and export report
 
 ```powershell
 node scripts/ekg.js report
@@ -235,7 +290,7 @@ This refreshes:
 - JSON indexes
 - pipeline state
 
-### 4.8 Generate the local panel
+### 4.10 Generate the local panel
 
 Generate a browser-openable EKG dashboard:
 
@@ -457,7 +512,9 @@ If you only remember five commands, remember these:
 node scripts/ekg.js storage-status
 node scripts/ekg.js query "keyword"
 node scripts/ekg.js add --title "..." --problem "..." --solution "..."
+node scripts/ekg.js ingest --source task --task "..." --summary "..."
 node scripts/ekg.js review
+node scripts/ekg.js stale-check --dry-run
 node scripts/ekg.js report
 node scripts/ekg.js panel
 node scripts/ekg.js backup-export
