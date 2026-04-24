@@ -59,6 +59,7 @@ module.exports = async function runPanelTest() {
       generated_at: "2026-04-22T00:00:00.000Z",
       stats: {
         experience_count: 2,
+        paper_count: 1,
         active_count: 1,
         needs_review_count: 1,
         stale_count: 0,
@@ -118,6 +119,24 @@ module.exports = async function runPanelTest() {
             files: ["lib/project/index.js"]
           },
           relations: ["blocked-by:E001"],
+          created_at: "2026-04-22T00:00:00.000Z",
+          updated_at: "2026-04-22T01:00:00.000Z"
+        },
+        {
+          kind: "Paper",
+          id: "P001",
+          title: "Callback-aware authentication routing",
+          abstract: "Studies redirect-safe callback handling in SPA auth flows.",
+          summary: "Explains callback-first routing for auth flows.",
+          findings: "Reduces redirect loops.",
+          limitations: "SPA-only evaluation.",
+          authors: ["Alice Zhang"],
+          topics: ["authentication", "routing"],
+          keywords: ["callback", "redirect"],
+          venue: "ICSE",
+          year: "2025",
+          status: "ACTIVE",
+          relations: ["fixes:E001"],
           created_at: "2026-04-22T00:00:00.000Z",
           updated_at: "2026-04-22T01:00:00.000Z"
         }
@@ -183,17 +202,20 @@ module.exports = async function runPanelTest() {
 
   const view = buildPanelViewModel(runtime);
   assert.equal(view.stats.experience_count, 2);
+  assert.equal(view.stats.paper_count, 1);
   assert.equal(view.active_project.id, "P001");
   assert.equal(view.pending_candidates.length, 2);
   assert.equal(view.pending_candidates.some((candidate) => candidate.review_gate.riskLevel === "high"), true);
   assert.equal(view.pending_candidates.some((candidate) => candidate.review_gate.riskLevel === "low"), true);
   assert.equal(view.top_tags[0].name, "routing");
   assert.equal(view.graph_view.nodes.some((node) => node.data.id === "E001"), true);
+  assert.equal(view.graph_view.nodes.some((node) => node.data.id === "P001"), true);
   assert.equal(view.graph_view.edges.length > 0, true);
   assert.equal(view.experience_relations.E001.some((item) => item.relation_type === "causes"), true);
 
   const graph = buildCytoscapeGraph(runtime.index);
   assert.equal(graph.nodes.some((node) => node.data.nodeType === "experience"), true);
+  assert.equal(graph.nodes.some((node) => node.data.nodeType === "paper"), true);
   assert.equal(graph.nodes.some((node) => node.data.nodeType === "tag"), true);
   assert.equal(graph.edges.some((edge) => edge.data.edgeType === "relation:causes"), true);
 
@@ -228,6 +250,9 @@ module.exports = async function runPanelTest() {
   assert.equal(html.includes("Browser Query Helper"), true);
   assert.equal(html.includes("Experience details"), true);
   assert.equal(html.includes("Related Experiences"), true);
+  assert.equal(html.includes("Research Papers"), true);
+  assert.equal(html.includes("Top Topics"), true);
+  assert.equal(html.includes("Callback-aware authentication routing"), true);
   assert.equal(html.includes("Explicit Relations"), true);
   assert.equal(html.includes("causes:E002"), true);
   assert.equal(html.includes("Symptom"), true);

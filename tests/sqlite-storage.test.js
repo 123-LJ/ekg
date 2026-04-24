@@ -39,6 +39,8 @@ module.exports = function runSqliteStorageTest() {
           root_cause: "",
           tags: ["auth"],
           techs: ["node"],
+          aliases: ["sqlite 存储"],
+          canonical_terms: ["sqlite-storage"],
           level: "L2",
           confidence: "CONFIRMED",
           status: "ACTIVE",
@@ -50,6 +52,31 @@ module.exports = function runSqliteStorageTest() {
           created_at: "2026-04-21T00:00:00.000Z",
           updated_at: "2026-04-21T00:00:00.000Z",
           experience_file: "experiences/E901-sqlite-storage-test.md"
+        },
+        {
+          id: "P901",
+          kind: "Paper",
+          title: "Memory graphs for coding agents",
+          abstract: "Explores graph-based memory for long-horizon coding tasks.",
+          summary: "Contrasts structured memory graphs with transcript-only recall.",
+          findings: "Hybrid memory improves recovery of prior decisions.",
+          limitations: "Does not evaluate human review loops.",
+          authors: ["Lin Chen"],
+          topics: ["agents", "memory"],
+          keywords: ["graph", "retrieval"],
+          aliases: ["智能体记忆"],
+          canonical_terms: ["agent-memory"],
+          venue: "arXiv",
+          year: "2026",
+          url: "https://example.com/p901",
+          doi: "",
+          arxiv_id: "2604.00001",
+          source: "test",
+          status: "ACTIVE",
+          relations: ["depends-on:E901"],
+          created_at: "2026-04-21T00:00:00.000Z",
+          updated_at: "2026-04-21T00:00:00.000Z",
+          paper_file: "papers/P901-memory-graphs-for-coding-agents.md"
         }
       ],
       edges: [
@@ -77,6 +104,8 @@ module.exports = function runSqliteStorageTest() {
   assert.equal(loaded.index.nodes[0].id, "E901");
   assert.equal(loaded.index.nodes[0].symptom, "Need to confirm sqlite-backed structured storage.");
   assert.equal(loaded.index.nodes[0].fix, "Persist additional structured columns in sqlite and mirrors.");
+  assert.equal(loaded.index.nodes[0].canonical_terms[0], "sqlite-storage");
+  assert.equal(loaded.index.nodes.some((node) => node.id === "P901"), true);
   assert.equal(loaded.index.edges[0].type, "involves");
   assert.equal(loaded.state.pipeline.name, "test-pipeline");
   assert.equal(fs.readFileSync(storagePaths.REPORT_FILE, "utf8"), reportContent);
@@ -126,6 +155,8 @@ module.exports = function runSqliteStorageTest() {
           root_cause: "",
           tags: ["token"],
           techs: ["node"],
+          aliases: ["增量同步"],
+          canonical_terms: ["sqlite-sync"],
           level: "L2",
           confidence: "CONFIRMED",
           status: "ACTIVE",
@@ -137,6 +168,26 @@ module.exports = function runSqliteStorageTest() {
           created_at: "2026-04-21T02:00:00.000Z",
           updated_at: "2026-04-21T02:00:00.000Z",
           experience_file: "experiences/E902-sqlite-incremental-sync-test.md"
+        },
+        {
+          id: "P902",
+          kind: "Paper",
+          title: "Research memory sync",
+          abstract: "Validates incremental persistence for paper nodes.",
+          summary: "Shows papers should survive sqlite delta sync too.",
+          authors: ["Test Author"],
+          topics: ["storage"],
+          keywords: ["sqlite"],
+          aliases: ["研究记忆同步"],
+          canonical_terms: ["sqlite-sync"],
+          venue: "ICSE",
+          year: "2026",
+          source: "test",
+          status: "ACTIVE",
+          relations: ["fixes:E902"],
+          created_at: "2026-04-21T02:00:00.000Z",
+          updated_at: "2026-04-21T02:00:00.000Z",
+          paper_file: "papers/P902-research-memory-sync.md"
         }
       ],
       edges: [
@@ -153,8 +204,9 @@ module.exports = function runSqliteStorageTest() {
 
   sqliteBackend.saveData(nextRuntime, { reportContent: "# sqlite report v2\n" });
   const reloadedAfterDelta = sqliteBackend.loadData(config);
-  assert.equal(reloadedAfterDelta.index.nodes.length, 1);
-  assert.equal(reloadedAfterDelta.index.nodes[0].id, "E902");
+  assert.equal(reloadedAfterDelta.index.nodes.length, 2);
+  assert.equal(reloadedAfterDelta.index.nodes.some((node) => node.id === "E902"), true);
+  assert.equal(reloadedAfterDelta.index.nodes.some((node) => node.id === "P902"), true);
   assert.equal(reloadedAfterDelta.index.edges.length, 1);
   assert.equal(reloadedAfterDelta.index.edges[0].from, "E902");
 

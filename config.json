@@ -29,16 +29,29 @@
       "enabled": true,
       "minimumScore": 0.18,
       "scoreWeight": 8,
-      "tokenWeight": 0.45,
-      "trigramWeight": 0.35,
-      "fieldWeight": 0.2,
+      "tokenWeight": 0.35,
+      "trigramWeight": 0.25,
+      "fieldWeight": 0.15,
+      "canonicalWeight": 0.4,
       "aliases": {
         "login": ["signin", "sign-in", "log-in", "authentication", "auth"],
         "redirect": ["reroute", "jump", "callback", "returnurl", "return-url"],
         "refresh": ["renew", "reload", "reauth", "re-auth"],
         "footer": ["tabbar", "bottomnav", "bottom-nav"],
         "bug": ["issue", "failure", "problem"],
-        "fix": ["repair", "resolve", "patch"]
+        "fix": ["repair", "resolve", "patch"],
+        "paper": ["study", "publication", "article", "work"],
+        "survey": ["review", "literature", "research-map", "direction"]
+      }
+    },
+    "multilingual": {
+      "enabled": true,
+      "concepts": {
+        "auth-redirect": ["\u767b\u5f55\u8df3\u8f6c", "\u767b\u5f55\u91cd\u5b9a\u5411", "\u8ba4\u8bc1\u8df3\u8f6c", "authentication redirect", "signin redirect", "auth redirect"],
+        "agent-memory": ["\u667a\u80fd\u4f53\u8bb0\u5fc6", "\u4ee3\u7406\u8bb0\u5fc6", "agent memory", "memory for agents"],
+        "literature-survey": ["\u6587\u732e\u7efc\u8ff0", "\u65b9\u5411\u8c03\u7814", "literature review", "survey paper"],
+        "retrieval-augmented-generation": ["\u68c0\u7d22\u589e\u5f3a\u751f\u6210", "rag", "retrieval augmented generation"],
+        "multimodal-retrieval": ["\u591a\u6a21\u6001\u68c0\u7d22", "multi-modal retrieval", "multimodal retrieval"]
       }
     }
   },

@@ -8,6 +8,8 @@ const {
   parseArgs,
   loadRuntime,
   saveState,
+  buildKnowledgeGraph,
+  getPaperById,
   queryExperiences,
   withWriteLock
 } = require("../lib");
@@ -91,7 +93,33 @@ function shouldUseDetail(matches, parsed, threshold) {
   );
 }
 
-function formatAdditionalContext(level, targetFile, matches) {
+function collectRelatedPapers(runtime, matches, limit = 2) {
+  const graph = buildKnowledgeGraph(runtime.index);
+  const seen = new Set();
+  const papers = [];
+
+  matches.forEach((match) => {
+    [...(graph.adjacency.get(match.experience.id) || [])]
+      .filter((neighbor) => neighbor.startsWith("P"))
+      .forEach((paperId) => {
+        if (seen.has(paperId) || papers.length >= limit) {
+          return;
+        }
+
+        const paper = getPaperById(runtime.index, paperId);
+        if (!paper) {
+          return;
+        }
+
+        seen.add(paperId);
+        papers.push(paper);
+      });
+  });
+
+  return papers;
+}
+
+function formatAdditionalContext(level, targetFile, matches, papers = []) {
   const lines = [
     `[EKG] ${level} match for ${targetFile}`,
     `[EKG] Found ${matches.length} relevant experience(s)`
@@ -102,6 +130,10 @@ function formatAdditionalContext(level, targetFile, matches) {
       lines.push(`- ${match.experience.id}: ${match.experience.title}`);
     });
     lines.push('[EKG] Use /ekg query <keyword> (or `node scripts/ekg.js query "<keyword>"`) for details.');
+    if (papers.length) {
+      lines.push("[EKG] Related papers:");
+      papers.forEach((paper) => lines.push(`- ${paper.id}: ${paper.title}`));
+    }
     return lines.join("\n");
   }
 
@@ -111,10 +143,15 @@ function formatAdditionalContext(level, targetFile, matches) {
     lines.push(`  solution: ${match.experience.solution}`);
   });
 
+  if (papers.length) {
+    lines.push("[EKG] Related papers:");
+    papers.forEach((paper) => lines.push(`- ${paper.id}: ${paper.title}`));
+  }
+
   return lines.join("\n");
 }
 
-function formatOutput(level, targetFile, matches) {
+function formatOutput(level, targetFile, matches, papers = []) {
   const lines = [
     `[EKG] ${level} match for ${targetFile}`,
     `[EKG] Found ${matches.length} relevant experience(s)`
@@ -126,6 +163,10 @@ function formatOutput(level, targetFile, matches) {
       lines.push(`  reason: ${match.reasons.join("; ")}`);
     });
     lines.push('[EKG] Run `node scripts/ekg.js query "<keyword>"` for full details.');
+    if (papers.length) {
+      lines.push("[EKG] Related papers:");
+      papers.forEach((paper) => lines.push(`- ${paper.id}: ${paper.title}`));
+    }
     return lines.join("\n");
   }
 
@@ -135,6 +176,14 @@ function formatOutput(level, targetFile, matches) {
     lines.push(`  solution: ${match.experience.solution}`);
     lines.push(`  reason: ${match.reasons.join("; ")}`);
   });
+
+  if (papers.length) {
+    lines.push("[EKG] Related papers:");
+    papers.forEach((paper) => {
+      lines.push(`- ${paper.id}: ${paper.title}`);
+      lines.push(`  venue/year: ${paper.venue || "n/a"} / ${paper.year || "n/a"}`);
+    });
+  }
 
   return lines.join("\n");
 }
@@ -172,6 +221,8 @@ function main() {
     process.exit(0);
   }
 
+  const papers = collectRelatedPapers(runtime, matches, 2);
+
   const matchIds = matches.map((match) => match.experience.id);
   if (
     !parsed.options.force &&
@@ -202,7 +253,7 @@ function main() {
     process.stdout.write(
       `${JSON.stringify(
         {
-          additionalContext: formatAdditionalContext(level, targetFile, matches),
+          additionalContext: formatAdditionalContext(level, targetFile, matches, papers),
           suppressOutput: true
         },
         null,
@@ -210,7 +261,7 @@ function main() {
       )}\n`
     );
   } else {
-    console.log(formatOutput(level, targetFile, matches));
+    console.log(formatOutput(level, targetFile, matches, papers));
     withWriteLock(runtime.config, "hook-pre-edit-cli", () => {
       const latestState = readJson(stateFile, state);
       rememberInjection(latestState, targetFile, matches);

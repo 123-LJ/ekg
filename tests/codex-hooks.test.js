@@ -9,6 +9,7 @@ const {
   touchesManagedStore: touchesManagedPromptStore,
   buildBlockedPromptOutput,
   buildProjectContextLines,
+  buildPaperMatchLines,
   buildPromptContext,
   buildUserPromptOutput
 } = require("../hooks/codex-user-prompt.js");
@@ -53,6 +54,32 @@ module.exports = function runCodexHooksTest() {
             files: ["src/views/loginRedirect.vue"],
             concepts: ["loginRedirect", "beforeEach"]
           }
+        },
+        {
+          kind: "Paper",
+          id: "P100",
+          title: "Redirect-safe authentication callbacks",
+          abstract: "A paper about signin callback safety in authentication flows.",
+          summary: "Studies callback handling in auth redirects.",
+          findings: "",
+          limitations: "",
+          notes: "",
+          authors: ["Alice Zhang"],
+          topics: ["auth", "redirect"],
+          keywords: ["signin", "callback"],
+          aliases: ["signin redirect"],
+          canonical_terms: ["auth-redirect"],
+          suggested_canonical_terms: [],
+          venue: "ICSE",
+          year: "2025",
+          url: "",
+          doi: "",
+          arxiv_id: "",
+          source: "manual/paper-cli",
+          status: "ACTIVE",
+          relations: ["supports:E100"],
+          created_at: "2026-04-22T00:00:00.000Z",
+          updated_at: "2026-04-22T00:00:00.000Z"
         }
       ]
     },
@@ -109,13 +136,22 @@ module.exports = function runCodexHooksTest() {
   assert.equal(projectContext.resolved.project.id, "P001");
   assert.equal(projectContext.lines.some((line) => line.includes("Resolved project root")), true);
 
+  const paperContext = buildPaperMatchLines(
+    runtime,
+    "Research signin callback handling for authentication redirect safety"
+  );
+  assert.equal(paperContext.matches.length, 1);
+  assert.equal(paperContext.matches[0].paper.id, "P100");
+
   const promptContext = buildPromptContext(
     runtime,
     "Please fix src/views/loginRedirect.vue login redirect issue"
   );
   assert.equal(promptContext.targetFile, "src/views/loginRedirect.vue");
   assert.equal(promptContext.matches.length, 1);
+  assert.equal(promptContext.paperMatches.length, 1);
   assert.equal(promptContext.context.includes("E100"), true);
+  assert.equal(promptContext.context.includes("P100"), true);
   assert.equal(promptContext.context.includes("Active project: Mall App"), true);
   assert.equal(
     promptContext.context.includes("Avoid broad recursive scans outside the resolved project root"),

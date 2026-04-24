@@ -149,7 +149,30 @@ node scripts/ekg.js query "auth guard"
 
 Use this before modifying code in a hotspot area.
 
-### 4.3 Explain a node
+### 4.3 Query papers and research directions
+
+Search tracked papers:
+
+```powershell
+node scripts/ekg.js paper-query "signin callback"
+node scripts/ekg.js paper-query "agent memory"
+```
+
+Explain one paper and its linked experience context:
+
+```powershell
+node scripts/ekg.js paper-explain P001
+```
+
+Survey a topic across papers and implementation knowledge together:
+
+```powershell
+node scripts/ekg.js survey "retrieval augmented generation"
+```
+
+This is useful before starting a new direction, not just when debugging an existing bug.
+
+### 4.4 Explain a node
 
 Explain a concept, file-related node, or experience:
 
@@ -161,7 +184,7 @@ node scripts/ekg.js explain vue-router
 
 This is used when you want to see which experiences are attached to a concept or node.
 
-### 4.4 Find a path between two nodes
+### 4.5 Find a path between two nodes
 
 ```powershell
 node scripts/ekg.js path auth vue-router
@@ -170,7 +193,7 @@ node scripts/ekg.js path E001 tabbar
 
 This is useful when you want to understand why two concepts are connected in the graph.
 
-### 4.5 Review experience quality
+### 4.6 Review experience quality
 
 List items that need review:
 
@@ -193,7 +216,36 @@ Use `review` when:
 - the solution might be outdated
 - the result needs manual approval
 
-### 4.6 Ingest automatic candidate skeleton
+### 4.7 Add or import papers
+
+Add a paper manually:
+
+```powershell
+node scripts/ekg.js paper-add `
+  --title "Redirect-safe authentication callbacks" `
+  --abstract "Studies callback handling patterns for authentication flows." `
+  --authors "A. Zhang,B. Li" `
+  --year 2025 `
+  --venue ICSE `
+  --topics auth,redirect `
+  --relations supports:E001
+```
+
+Import candidate papers from external metadata providers:
+
+```powershell
+node scripts/ekg.js paper-import --source openalex --query "agent memory" --limit 5
+node scripts/ekg.js paper-import --source semanticscholar --query "signin callback" --limit 5
+```
+
+When imported papers contain mixed-language terms, use concept helpers:
+
+```powershell
+node scripts/ekg.js concept-suggest "登录跳转 signin redirect"
+node scripts/ekg.js concept-register --canonical auth-redirect --alias "登录跳转" --alias "signin redirect"
+```
+
+### 4.8 Ingest automatic candidate skeleton
 
 EKG now has a Phase 2 prototype command that creates **reviewable candidates** instead of writing formal experiences directly.
 
@@ -221,7 +273,7 @@ Current behavior:
 - default confidence is `UNCERTAIN`
 - you still need `capture-accept --confirm` before it becomes a formal experience
 
-### 4.7 Review host-generated capture candidates
+### 4.9 Review host-generated capture candidates
 
 If the host integration is enabled, task-end hooks will create pending candidates first.
 
@@ -251,7 +303,7 @@ node scripts/ekg.js capture-dismiss C001
 
 On the main `Stop` flow, the hook will now stop once for a brand-new candidate so you do not forget the review step.
 
-### 4.8 Stale baseline and stale check
+### 4.10 Stale baseline and stale check
 
 EKG now has a first-pass stale detection skeleton for file anchors.
 
@@ -278,7 +330,7 @@ Current first version checks:
 - missing anchor files
 - content changes for files that already have a stored baseline
 
-### 4.9 Rebuild and export report
+### 4.11 Rebuild and export report
 
 ```powershell
 node scripts/ekg.js report
@@ -290,7 +342,7 @@ This refreshes:
 - JSON indexes
 - pipeline state
 
-### 4.10 Generate the local panel
+### 4.12 Generate the local panel
 
 Generate a browser-openable EKG dashboard:
 
@@ -312,11 +364,13 @@ The panel currently shows:
 
 - overall stats
 - recent experiences
+- recent papers
 - browser-side query helper
 - experience detail drawer
 - related experience suggestions
 - graph summary
 - top tags / techs / file anchors
+- paper topics and venues
 - registered projects and active project
 - pending capture candidates
 - latest pipeline status
@@ -457,14 +511,16 @@ The most practical workflow is:
 
 1. When you enter a repo, run `project-use` or `project-register` once so EKG knows the active workspace.
 2. Before editing a file, run `query` or let the hook check related experience.
-3. After solving a real problem, add one clean experience record.
-4. If the experience is still uncertain, mark it for later review.
-5. Periodically run `report` and `pipeline-status` to keep exports updated.
+3. Before starting a new direction, run `paper-query` or `survey` to check linked research memory.
+4. After solving a real problem, add one clean experience record.
+5. If the experience is still uncertain, mark it for later review.
+6. Periodically run `report` and `pipeline-status` to keep exports updated.
 
 In short:
 
 - project switch: `project-use`
 - before coding: `query`
+- before exploring a direction: `survey`
 - after solving: `add`
 - when uncertain: `review`
 - for outputs: `report` / `panel`
@@ -511,6 +567,8 @@ If you only remember five commands, remember these:
 ```powershell
 node scripts/ekg.js storage-status
 node scripts/ekg.js query "keyword"
+node scripts/ekg.js paper-query "keyword"
+node scripts/ekg.js survey "topic"
 node scripts/ekg.js add --title "..." --problem "..." --solution "..."
 node scripts/ekg.js ingest --source task --task "..." --summary "..."
 node scripts/ekg.js review

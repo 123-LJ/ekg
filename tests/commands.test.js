@@ -32,7 +32,14 @@ function createRuntime() {
         backend: "json"
       },
       query: {
-        defaultLimit: 5
+        defaultLimit: 5,
+        multilingual: {
+          enabled: true,
+          concepts: {
+            "auth-redirect": ["登录跳转", "signin redirect", "登录重定向"],
+            "agent-memory": ["智能体记忆", "agent memory"]
+          }
+        }
       }
     },
     storagePaths: {
@@ -69,6 +76,8 @@ function createRuntime() {
           confidence: "CONFIRMED",
           source: "test",
           project_scope: "current-project",
+          aliases: ["登录跳转"],
+          canonical_terms: ["auth-redirect"],
           created_at: "2026-04-21T00:00:00.000Z",
           updated_at: "2026-04-21T00:00:00.000Z",
           experience_file: "",
@@ -105,6 +114,28 @@ function createRuntime() {
             concepts: ["refreshGuard"]
           },
           relations: ["blocked-by:E001"]
+        },
+        {
+          id: "P001",
+          kind: "Paper",
+          title: "Callback-aware authentication routing",
+          abstract: "Studies redirect-safe callback handling in SPA auth flows.",
+          summary: "Shows why callback handling should happen before generic auth fallback.",
+          findings: "Callback-aware routing reduces redirect loops.",
+          limitations: "Only evaluates SPA clients.",
+          authors: ["Alice Zhang", "Bo Li"],
+          topics: ["authentication", "routing"],
+          keywords: ["callback", "redirect", "signin"],
+          venue: "ICSE",
+          year: "2025",
+          url: "https://example.com/paper",
+          aliases: ["登录重定向"],
+          canonical_terms: ["auth-redirect"],
+          status: "ACTIVE",
+          relations: ["fixes:E001"],
+          created_at: "2026-04-21T00:00:00.000Z",
+          updated_at: "2026-04-21T00:00:00.000Z",
+          paper_file: ""
         }
       ],
       edges: []
@@ -146,6 +177,8 @@ module.exports = async function runCommandsTest() {
   assert.equal(helpOutput.includes("project-register"), true);
   assert.equal(helpOutput.includes("project-resolve"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js trace"), true);
+  assert.equal(helpOutput.includes("node scripts/ekg.js paper-import"), true);
+  assert.equal(helpOutput.includes("node scripts/ekg.js concept-suggest"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js ingest"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js stale-check"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js panel"), true);
@@ -172,6 +205,31 @@ module.exports = async function runCommandsTest() {
   assert.equal(semanticQueryOutput.includes("E001"), true);
   assert.equal(semanticQueryOutput.includes("semantic"), true);
 
+  const paperQueryOutput = captureLogs(() => {
+    commands.commandPaperQuery(runtime, {
+      positional: ["paper-query", "signin callback research"],
+      options: {}
+    });
+  });
+  assert.equal(paperQueryOutput.includes("P001"), true);
+  assert.equal(paperQueryOutput.includes("ICSE"), true);
+
+  const paperExplainOutput = captureLogs(() => {
+    commands.commandPaperExplain(runtime, {
+      positional: ["paper-explain", "P001"],
+      options: {}
+    });
+  });
+  assert.equal(paperExplainOutput.includes("related experiences: E001"), true);
+
+  const conceptSuggestOutput = captureLogs(() => {
+    commands.commandConceptSuggest(runtime, {
+      positional: ["concept-suggest", "登录跳转", "signin redirect"],
+      options: {}
+    });
+  });
+  assert.equal(conceptSuggestOutput.includes("\"action\": \"concept-suggest\""), true);
+
   const traceOutput = captureLogs(() => {
     commands.commandTrace(runtime, {
       positional: ["trace", "login redirect callback"],
@@ -186,6 +244,15 @@ module.exports = async function runCommandsTest() {
   assert.equal(traceOutput.includes("summary:"), true);
   assert.equal(traceOutput.includes("suggested files:"), true);
   assert.equal(traceOutput.includes("check order:"), true);
+
+  const surveyOutput = captureLogs(() => {
+    commands.commandSurvey(runtime, {
+      positional: ["survey", "authentication routing"],
+      options: {}
+    });
+  });
+  assert.equal(surveyOutput.includes("[papers]"), true);
+  assert.equal(surveyOutput.includes("[implementation knowledge]"), true);
 
   const pathOutput = captureLogs(() => {
     commands.commandPath(runtime, {
@@ -223,10 +290,69 @@ module.exports = async function runCommandsTest() {
     }, { skipSave: true, skipExperienceFile: true });
   });
   assert.equal(addOutput.includes("\"id\": \"E003\""), true);
-  assert.equal(runtime.index.nodes.length, 3);
-  assert.equal(runtime.index.nodes[2].symptom, "Footer tabs are incomplete");
-  assert.equal(runtime.index.nodes[2].fix, "Restore the category item in the footer config");
-  assert.equal(runtime.index.nodes[2].relations[0], "depends-on:E001");
+  assert.equal(runtime.index.nodes.length, 4);
+  assert.equal(runtime.index.nodes[3].symptom, "Footer tabs are incomplete");
+  assert.equal(runtime.index.nodes[3].fix, "Restore the category item in the footer config");
+  assert.equal(runtime.index.nodes[3].relations[0], "depends-on:E001");
+
+  const paperAddOutput = captureLogs(() => {
+    commands.commandPaperAdd(runtime, {
+      positional: ["paper-add"],
+      options: {
+        title: "Agent memory for long-horizon coding",
+        abstract: "Examines memory systems for coding agents.",
+        summary: "Compares lightweight memory graphs with transcript-only memory.",
+        authors: "Chen Wei,Liu Fang",
+        topics: "agents,memory",
+        keywords: "ekg,coding agent",
+        aliases: "智能体记忆,agent memory",
+        "canonical-terms": "agent-memory",
+        venue: "arXiv",
+        year: "2026",
+        relations: "depends-on:E001"
+      }
+    }, { skipSave: true, skipPaperFile: true });
+  });
+  assert.equal(paperAddOutput.includes("\"id\": \"P002\""), true);
+  assert.equal(runtime.index.nodes.length, 5);
+  assert.equal(runtime.index.nodes[4].kind, "Paper");
+  assert.equal(runtime.index.nodes[4].relations[0], "depends-on:E001");
+  assert.equal(runtime.index.nodes[4].canonical_terms.includes("agent-memory"), true);
+
+  const paperImportOutput = captureLogs(() => {
+    commands.commandPaperImport(runtime, {
+      source: "openalex",
+      query: "agent memory",
+      count: 1,
+      results: [
+        {
+          action: "created",
+          paper: {
+            id: "P003",
+            kind: "Paper",
+            title: "Memory graphs for coding agents",
+            abstract: "Studies memory graphs for coding agents.",
+            summary: "Connects long-horizon coding memory with graph retrieval.",
+            authors: ["Lin Chen"],
+            topics: ["agents", "memory"],
+            keywords: ["graph memory"],
+            aliases: ["智能体记忆"],
+            canonical_terms: ["agent-memory"],
+            venue: "OpenAlex Demo",
+            year: "2026",
+            status: "ACTIVE",
+            relations: ["depends-on:E001"],
+            created_at: "2026-04-21T00:00:00.000Z",
+            updated_at: "2026-04-21T00:00:00.000Z"
+          }
+        }
+      ]
+    }, { skipSave: true, skipPaperFile: true });
+  });
+  assert.equal(paperImportOutput.includes("\"action\": \"paper-import\""), true);
+  assert.equal(runtime.index.nodes.length, 6);
+  assert.equal(runtime.index.nodes[5].canonical_terms.includes("agent-memory"), true);
+  assert.equal(paperImportOutput.includes("suggested_canonical_terms"), true);
 
   assert.throws(() => {
     commands.commandAdd(runtime, {

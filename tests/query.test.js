@@ -1,5 +1,11 @@
 const assert = require("node:assert/strict");
-const { queryExperiences, traceExperiences, scoreSemanticExperience } = require("../lib/query");
+const {
+  queryExperiences,
+  queryPapers,
+  traceExperiences,
+  scoreSemanticExperience,
+  scoreSemanticPaper
+} = require("../lib/query");
 
 module.exports = function runQueryTest() {
   const index = {
@@ -16,6 +22,8 @@ module.exports = function runQueryTest() {
         scope: "Affects the login redirect and auth guard flow.",
         root_cause: "Guard re-entered itself.",
         tags: ["auth", "redirect"],
+        aliases: ["\u767b\u5f55\u8df3\u8f6c", "\u8ba4\u8bc1\u8df3\u8f6c"],
+        canonical_terms: ["auth-redirect"],
         techs: ["vue-router"],
         status: "ACTIVE",
         anchors: {
@@ -59,6 +67,24 @@ module.exports = function runQueryTest() {
           concepts: ["refreshGuard", "callbackRedirect"]
         },
         relations: ["blocked-by:E001"]
+      },
+      {
+        id: "P001",
+        kind: "Paper",
+        title: "Callback-aware authentication routing",
+        abstract: "This paper studies redirect-safe callback handling in authentication flows.",
+        summary: "Explains why callback routes should be handled before generic auth fallback logic.",
+        findings: "Callback-aware routing reduces redirect loops during sign-in.",
+        limitations: "Focuses on SPA routing instead of server-side auth.",
+        authors: ["Alice Zhang", "Bo Li"],
+        topics: ["authentication", "routing"],
+        keywords: ["callback", "redirect", "signin"],
+        aliases: ["\u8ba4\u8bc1\u8df3\u8f6c", "\u767b\u5f55\u91cd\u5b9a\u5411"],
+        canonical_terms: ["auth-redirect"],
+        venue: "ICSE",
+        year: "2025",
+        status: "ACTIVE",
+        relations: ["fixes:E001"]
       }
     ],
     edges: []
@@ -97,6 +123,37 @@ module.exports = function runQueryTest() {
     }
   });
   assert.equal(semanticScore.semanticScore > 0, true);
+
+  const paperMatches = queryPapers(index, {
+    text: "signin callback routing research",
+    minScore: 1
+  }, 3);
+  assert.equal(paperMatches.length > 0, true);
+  assert.equal(paperMatches[0].paper.id, "P001");
+
+  const multilingualPaperMatches = queryPapers(index, {
+    text: "\u767b\u5f55\u8df3\u8f6c \u8ba4\u8bc1\u91cd\u5b9a\u5411",
+    minScore: 1,
+    semanticConfig: {
+      enabled: true,
+      multilingual: {
+        enabled: true,
+        concepts: {
+          "auth-redirect": ["\u767b\u5f55\u8df3\u8f6c", "\u8ba4\u8bc1\u91cd\u5b9a\u5411", "authentication redirect", "signin redirect"]
+        }
+      }
+    }
+  }, 3);
+  assert.equal(multilingualPaperMatches.length > 0, true);
+  assert.equal(multilingualPaperMatches[0].paper.id, "P001");
+
+  const paperSemanticScore = scoreSemanticPaper(index.nodes[3], {
+    text: "sign-in reroute study",
+    semanticConfig: {
+      enabled: true
+    }
+  });
+  assert.equal(paperSemanticScore.semanticScore > 0, true);
 
   const trace = traceExperiences(index, {
     text: "login redirect callback",

@@ -1,101 +1,170 @@
-# EKG — Experience Knowledge Graph
+---
+name: ekg-skill
+description: EKG 技能说明，面向代理在项目中查询、记录、审查和复用经验与论文知识
+type: skill
+version: v2.0
+created_at: 2026-04-21
+updated_at: 2026-04-24
+owner: Team Lead / Architect
+status: active
+---
 
-## 类型
-tool
+# EKG Skill
 
-## 触发
-- `/ekg` — 构建或更新经验知识图谱
-- `/ekg query <关键词>` — 查询相关经验
-- `/ekg path <节点A> <节点B>` — 查找两个概念之间的经验路径
-- `/ekg explain <概念>` — 解释某个概念相关的所有经验
-- `/ekg add <描述>` — 手动添加一条经验
-- `/ekg review` — 审核待确认的经验（UNCERTAIN → CONFIRMED）
+## 1. 这个 skill 是做什么的
 
-## 概述
+EKG（Experience Knowledge Graph）用于管理“编码过程中产生的已验证经验”和“与实现方向相关的研究论文”。
 
-EKG 是一个自进化的经验知识图谱系统。它不记录代码结构（那是 Graphify 的事），而是记录**写代码过程中积累的经验**——踩过的坑、发现的惯例、做出的设计决策。
+它不负责描述代码结构本身，而是负责回答这些问题：
 
-核心目标：**让 AI 越用越聪明，减少重复探索的 token 消耗。**
+- 这个问题以前踩过吗
+- 当时为什么出错
+- 最后哪种解法验证有效
+- 这个方向有没有相关研究论文或历史实现经验
 
-## 与 Graphify 的关系
+## 2. 适用场景
 
-| | Graphify | EKG |
-|---|---|---|
-| 记录什么 | 代码结构（空间地图） | 开发经验（时间地图） |
-| 数据来源 | 代码文件 | 对话、git log、手动添加 |
-| 会成长吗 | 不会，要手动重建 | 会，每次交互都可能新增 |
-| 解决什么问题 | "代码长什么样" | "之前踩过什么坑、为什么这样设计" |
+在下面这些场景里优先使用 EKG：
 
-两者互补，不替代。
+1. 改一个已知热点文件、功能区或 bug 区域之前
+2. 一次修复已经验证完成，准备沉淀经验时
+3. 想了解某个方向是否已有论文或实现经验时
+4. 多 agent 协作，需要共享项目记忆时
 
-## 相关文档
+## 3. 标准工作流
 
-- `README.md` — 文档导航与当前阶段结论
-- `需求文档.md` — 业务目标、范围、模块、验收标准
-- `技术架构.md` — 选型、Pipeline、目录结构、Hook 与缓存策略
-- `任务分解.md` — Phase 规划、Gate、执行顺序
-- `命令与数据模型.md` — `/ekg` 命令面、节点/边模型、状态枚举与注入协议
+### 3.1 修改前先查询
 
-## 核心原则
-
-1. **只记高价值信息** — 踩坑记录、项目惯例、设计决策，不记废话
-2. **能不花 token 就不花** — Pass 1 纯规则解析零成本，Pass 2 才用 LLM
-3. **靠机制不靠自觉** — 用 Hook 强制注入，不依赖 AI 主动去查
-4. **增量而非全量** — 缓存机制，不重复处理已知内容
-5. **可移植** — 整个 ekg/ 目录独立，可复制到任何项目
-
-## Pipeline
-
-```
-Pass 1: 结构化解析（零 LLM 成本）
-  ├── 解析 git log / git diff → 识别改了什么模块
-  ├── 解析 commit message → 识别 fix:/feat:/refactor:
-  ├── 解析代码注释中的 WHY:/HACK:/NOTE: → 提取设计意图
-  └── 判断是否需要触发 Pass 2
-
-Pass 2: LLM 提取经验（按需触发）
-  ├── 从对话/commit 中提取：问题、解法、根因
-  ├── 打标签（tags）
-  ├── 标注置信度（CONFIRMED / INFERRED / UNCERTAIN）
-  └── 识别关联关系
-
-Pass 3: 图构建 + 聚类
-  ├── 合并到 NetworkX 图
-  ├── Leiden 社区发现（按领域聚类）
-  ├── 识别 hotspots（高频问题）
-  └── 生成 EKG_REPORT.md + ekg.json + ekg.html
+```powershell
+cd C:/Users/Administrator/Desktop/skill/tools/ekg
+node scripts/ekg.js query "<keyword-or-file>"
 ```
 
-## 查询流程
+如果是在新方向探索阶段，再补一轮：
 
-```
-收到任务
-  → PreToolUse Hook 触发
-  → Level 0: 无相关经验 → 静默
-  → Level 1: 有相关经验 → 注入一句话摘要（~50 token）
-  → Level 2: 用户主动查询或高置信度匹配 → 注入完整内容（200-400 token）
-  → 执行任务
-  → 任务完成后 → 评估是否值得记录 → 写入新经验
+```powershell
+node scripts/ekg.js paper-query "<topic>"
+node scripts/ekg.js survey "<topic>"
 ```
 
-## 经验层级
+### 3.2 验证后再沉淀
 
-- **L1 实例级** — 绑定具体项目，如 "bbs-web-pc 的 loginRedirect 死循环"
-- **L2 模式级** — 绑定技术栈，如 "Vue beforeEach 守卫与重定向的循环问题"
-- **L3 原则级** — 技术栈无关，如 "全局拦截逻辑要排除自身触发的路径"
+不要把未确认结论直接写成正式经验。
 
-写入时默认 L1，积累足够同类经验后可提炼为 L2/L3。跨项目移植时只带 L2+L3。
+优先生成 capture candidate：
 
-## 经验锚定
+```powershell
+cd C:/Users/Administrator/Desktop/skill/tools/ekg
+node hooks/task-complete.js --task "<task>" --summary "<verified result>" --file <changed-file>
+node scripts/ekg.js capture-status
+node scripts/ekg.js capture-accept C001 --confirm
+```
 
-不使用行号（太容易变），使用语义锚点：
+如果是噪声候选：
 
-| 锚定方式 | 可靠性 | 示例 |
-|---|---|---|
-| 函数名/组件名 | 高 | `loginRedirect` |
-| 文件路径 | 高 | `src/views/loginRedirect.vue` |
-| commit hash | 高 | `59c3d1f` |
-| 模块/目录 | 中 | `src/views/auth/` |
-| 行号范围 | 低 | 避免使用 |
+```powershell
+node scripts/ekg.js capture-dismiss C001
+```
 
-文件变更时通过 SHA256 对比检测 STALE 状态。
+## 4. 关键命令
+
+### 4.1 经验层
+
+- `node scripts/ekg.js query "<keyword>"`
+- `node scripts/ekg.js trace "<keyword>"`
+- `node scripts/ekg.js explain <node>`
+- `node scripts/ekg.js add --title "..." --problem "..." --solution "..."`
+- `node scripts/ekg.js review`
+
+### 4.2 论文层
+
+- `node scripts/ekg.js paper-query "<keyword>"`
+- `node scripts/ekg.js paper-explain <paper>`
+- `node scripts/ekg.js paper-add ...`
+- `node scripts/ekg.js paper-import --source openalex --query "<keyword>"`
+- `node scripts/ekg.js survey "<topic>"`
+
+### 4.3 概念规范化
+
+- `node scripts/ekg.js concept-suggest "<text>"`
+- `node scripts/ekg.js concept-register --canonical <key> --alias "<text>"`
+
+### 4.4 项目上下文
+
+- `node scripts/ekg.js project-register --name "<name>" --root <path> --activate`
+- `node scripts/ekg.js project-use <id>`
+- `node scripts/ekg.js project-status`
+- `node scripts/ekg.js project-resolve <file-or-path>`
+
+### 4.5 导出与运行态
+
+- `node scripts/ekg.js report`
+- `node scripts/ekg.js panel`
+- `node scripts/ekg.js panel --serve --open`
+- `node scripts/ekg.js storage-status`
+- `node scripts/ekg.js backup-export`
+
+## 5. 数据原则
+
+### 5.1 只记录高价值知识
+
+优先记录：
+
+- 已验证的 bug 修复
+- 设计决策
+- 可复用的工程模式
+- 与方向选择强相关的论文
+
+不要记录：
+
+- 模糊猜测
+- 未验证结论
+- 纯过程噪声
+
+### 5.2 正式知识与候选知识分离
+
+- 正式知识：Experience / Paper
+- 待审知识：Capture Candidate
+
+只有经过 review/accept 的候选才应进入正式图谱。
+
+### 5.3 不直接手改受管文件
+
+不要直接编辑这些文件：
+
+- `ekg-out/ekg.sqlite`
+- `ekg.json`
+- `state.json`
+
+必须通过 CLI / runtime / hook 工作流来写入。
+
+## 6. 与 Graphify 的关系
+
+Graphify 更偏“代码结构和空间关系”。
+
+EKG 更偏“工程经验和时间维度上的复用知识”。
+
+两者互补，而不是替代关系：
+
+- Graphify 回答“代码长什么样”
+- EKG 回答“以前在这里踩过什么坑、做过什么决策”
+
+## 7. 当前实现状态
+
+EKG 当前已具备：
+
+- SQLite 主存储
+- JSON / Markdown 镜像
+- 经验层查询、解释、审查
+- 论文层查询、导入和联查
+- multilingual canonical retrieval
+- 项目上下文
+- Claude / Codex 集成
+- 本地 panel 与 graph view
+
+仍在继续增强的方向：
+
+- 更强的 stale 检测
+- 经验演化链
+- 更系统的研究工作流
+- MCP / query server

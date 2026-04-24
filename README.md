@@ -22,6 +22,8 @@ EKG is currently tracked as **Phase 2+**:
 - **Stale-check prototype**: detect changed or missing anchor files and move experience back into review
 - **Portable backup package**: export and restore EKG across machines
 - **Local HTML panel**: generate a browser-openable dashboard from current EKG data
+- **Research paper memory**: track papers, import metadata, and connect research to implementation experience
+- **Multilingual canonical retrieval**: bridge aliases and mixed-language concepts during query
 
 ## Host support
 
@@ -42,6 +44,8 @@ node scripts/install-host.js --host codex --codex-mode strong
 # Use the CLI
 node scripts/ekg.js help
 node scripts/ekg.js query "redirect"
+node scripts/ekg.js paper-query "signin callback"
+node scripts/ekg.js survey "agent memory"
 node scripts/ekg.js ingest --source task --task "Fix redirect loop" --summary "Exclude callback route"
 node scripts/ekg.js stale-check --dry-run
 node scripts/ekg.js panel
@@ -82,6 +86,7 @@ Current panel features:
 - browser-side query helper
 - experience detail drawer
 - related experience suggestions
+- research papers, topics, and venues
 - graph summary
 - CLI command hints
 

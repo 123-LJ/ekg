@@ -38,6 +38,7 @@ Purpose:
 
 - look up relevant past experience by target file
 - inject a short or detailed reminder into the host context
+- when available, attach directly related papers so implementation and research memory stay connected
 
 ### 2. Task-end capture
 
@@ -113,7 +114,7 @@ This installs:
 Practical effect:
 
 - session start reminds Codex that EKG is active
-- each submitted prompt gets an EKG reminder and prompt-aligned experience hints
+- each submitted prompt gets an EKG reminder, prompt-aligned experience hints, and lightweight related-paper hints
 - Bash permission hooks block direct writes to `ekg-out/ekg.sqlite`, `ekg.json`, and `state.json`
 - task end creates reviewable capture candidates
 
@@ -162,6 +163,24 @@ Formal accepted experience is then written through the normal runtime path:
 
 - SQLite primary store
 - JSON/report mirrors
+- Markdown copies in `experiences/` and `papers/`
+
+## Research-aware workflow
+
+EKG host integration is no longer limited to bug-fix recall.
+
+When the current prompt or file hint matches tracked research topics, the host layer can surface:
+
+- related papers
+- linked implementation experience
+- a follow-up hint to use `survey`
+
+Useful manual commands:
+
+```powershell
+node scripts/ekg.js paper-query "agent memory"
+node scripts/ekg.js survey "agent memory"
+```
 
 ## Minimal host data contract
 

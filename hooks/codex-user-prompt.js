@@ -5,6 +5,7 @@ const path = require("node:path");
 const {
   loadRuntime,
   queryExperiences,
+  queryPapers,
   getActiveProject,
   resolveProjectForPath
 } = require("../lib");
@@ -127,10 +128,36 @@ function buildPromptMatchLines(runtime, prompt, targetFile) {
   return { matches, lines };
 }
 
+function buildPaperMatchLines(runtime, prompt) {
+  const matches = queryPapers(
+    runtime.index,
+    {
+      text: prompt,
+      minScore: Math.max(1, Math.min((((runtime.config || {}).hook || {}).minimumScore || 5), 2))
+    },
+    Math.min(3, (((runtime.config || {}).hook || {}).maxInjectedExperiences || 3))
+  );
+  const lines = [];
+
+  if (!matches.length) {
+    return { matches, lines };
+  }
+
+  lines.push(`[EKG] Related research papers (${matches.length}):`);
+  matches.forEach((match) => {
+    lines.push(`- ${match.paper.id}: ${match.paper.title}`);
+    lines.push(`  venue/year: ${match.paper.venue || "n/a"} / ${match.paper.year || "n/a"}`);
+  });
+  lines.push('[EKG] Use `node scripts/ekg.js survey "<topic-or-keyword>"` to review papers and implementation knowledge together.');
+
+  return { matches, lines };
+}
+
 function buildPromptContext(runtime, prompt) {
   const ekgRoot = slashPath(path.resolve(__dirname, ".."));
   const targetFile = extractPromptTargetFile(prompt);
   const { matches, lines: matchLines } = buildPromptMatchLines(runtime, prompt, targetFile);
+  const { matches: paperMatches, lines: paperLines } = buildPaperMatchLines(runtime, prompt);
   const projectContext = buildProjectContextLines(runtime, targetFile);
   const pending = getPendingCandidates(runtime);
   const lines = [
@@ -152,6 +179,10 @@ function buildPromptContext(runtime, prompt) {
     lines.push("[EKG] No direct experience match yet. Keep the EKG query step before editing.");
   }
 
+  if (paperLines.length) {
+    lines.push(...paperLines);
+  }
+
   if (pending.length) {
     lines.push(`[EKG] Pending capture candidates: ${pending.length}`);
   }
@@ -159,6 +190,7 @@ function buildPromptContext(runtime, prompt) {
   return {
     targetFile,
     matches,
+    paperMatches,
     context: lines.join("\n")
   };
 }
@@ -226,6 +258,7 @@ module.exports = {
   getPendingCandidates,
   buildProjectContextLines,
   buildPromptMatchLines,
+  buildPaperMatchLines,
   buildPromptContext,
   buildBlockedPromptOutput,
   buildUserPromptOutput,
