@@ -346,6 +346,40 @@ module.exports = async function runCommandsTest() {
   assert.equal(runtime.index.nodes[4].relations[0], "depends-on:E001");
   assert.equal(runtime.index.nodes[4].canonical_terms.includes("agent-memory"), true);
 
+  const paperCaptureOutput = captureLogs(() => {
+    commands.commandPaperCapture(runtime, {
+      positional: ["paper-capture"],
+      options: {
+        title: "Prompt priors override visual evidence",
+        abstract: "Studies how prompt priors can dominate visual grounding in LVLMs.",
+        summary: "Separates perception failures from prompt-induced hallucinations.",
+        authors: "Researcher A,Researcher B",
+        topics: "multimodal,grounding",
+        keywords: "hallucination,prompt prior",
+        venue: "arXiv",
+        year: "2026",
+        url: "https://example.com/paper-candidate"
+      }
+    }, { skipSave: true });
+  });
+  assert.equal(paperCaptureOutput.includes("\"action\": \"paper-capture\""), true);
+  assert.equal(runtime.state.capture.pending_candidates.length, 1);
+  assert.equal(runtime.state.capture.pending_candidates[0].entry_kind, "Paper");
+
+  const paperCaptureAcceptOutput = captureLogs(() => {
+    commands.commandCaptureAccept(runtime, {
+      positional: ["capture-accept", runtime.state.capture.pending_candidates[0].id],
+      options: {
+        confirm: true
+      }
+    }, { skipSave: true, skipPaperFile: true });
+  });
+  assert.equal(paperCaptureAcceptOutput.includes("\"entry_kind\": \"Paper\""), true);
+  assert.equal(paperCaptureAcceptOutput.includes("\"paper_id\": \"P003\""), true);
+  assert.equal(runtime.index.nodes[5].kind, "Paper");
+  assert.equal(runtime.index.nodes[5].title, "Prompt priors override visual evidence");
+  assert.equal(runtime.state.capture.pending_candidates.length, 0);
+
   const paperImportOutput = captureLogs(() => {
     commands.commandPaperImport(runtime, {
       source: "openalex",
@@ -377,8 +411,8 @@ module.exports = async function runCommandsTest() {
     }, { skipSave: true, skipPaperFile: true });
   });
   assert.equal(paperImportOutput.includes("\"action\": \"paper-import\""), true);
-  assert.equal(runtime.index.nodes.length, 6);
-  assert.equal(runtime.index.nodes[5].canonical_terms.includes("agent-memory"), true);
+  assert.equal(runtime.index.nodes.length, 7);
+  assert.equal(runtime.index.nodes[6].canonical_terms.includes("agent-memory"), true);
   assert.equal(paperImportOutput.includes("suggested_canonical_terms"), true);
 
   assert.throws(() => {

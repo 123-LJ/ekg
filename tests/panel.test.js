@@ -162,6 +162,7 @@ module.exports = async function runPanelTest() {
           {
             id: "C001",
             title: "Review routing fix",
+            entry_kind: "Experience",
             problem: "Need to confirm path handling",
             solution: "Verify project root restriction",
             status: "NEEDS_REVIEW",
@@ -176,13 +177,14 @@ module.exports = async function runPanelTest() {
           },
           {
             id: "C002",
-            title: "Simple docs note",
-            problem: "Keep a short doc note",
-            solution: "Record a short verified note with a file anchor.",
+            title: "Review multimodal hallucination paper",
+            entry_kind: "Paper",
+            problem: "Need to confirm web paper analysis before adding it into the formal paper graph.",
+            solution: "Record the reviewed paper summary and keep it queryable beside implementation experience.",
             status: "NEEDS_REVIEW",
             confidence: "UNCERTAIN",
             anchors: {
-              files: ["docs/simple-note.md"]
+              files: ["papers/research-note.md"]
             },
             origin: {
               event: "Stop"
@@ -234,7 +236,11 @@ module.exports = async function runPanelTest() {
   assert.equal(html.includes("Capture Review Queue"), true);
   assert.equal(html.includes("Review Workspace"), true);
   assert.equal(html.includes("Review Checklist"), true);
-  assert.equal(html.includes("Human Confirmation Required"), true);
+  assert.equal(html.includes("Unified Candidate Queue"), true);
+  assert.equal(html.includes("Candidate type filter"), true);
+  assert.equal(html.includes("data-entry-filter=\"all\""), true);
+  assert.equal(html.includes("data-entry-filter=\"experience\""), true);
+  assert.equal(html.includes("data-entry-filter=\"paper\""), true);
   assert.equal(html.includes("Only show high-risk candidates"), true);
   assert.equal(html.includes("Filter review queue by file path"), true);
   assert.equal(html.includes("Accept Into Graph"), true);
@@ -248,7 +254,10 @@ module.exports = async function runPanelTest() {
   assert.equal(html.includes("panelRuntimeConfig"), true);
   assert.equal(html.includes("reviewHighRiskOnly"), true);
   assert.equal(html.includes("reviewFileFilter"), true);
+  assert.equal(html.includes("setReviewEntryFilter"), true);
   assert.equal(html.includes("data-risk-level=\"high\""), true);
+  assert.equal(html.includes("data-entry-kind=\"paper\""), true);
+  assert.equal(html.includes(">Paper<"), true);
   assert.equal(html.includes("data-file-haystack=\"lib/project/index.js\""), true);
   assert.equal(html.includes("Browser Query Helper"), true);
   assert.equal(html.includes("Experience details"), true);
