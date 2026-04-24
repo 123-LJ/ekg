@@ -85,8 +85,12 @@ module.exports = async function runPanelTest() {
           kind: "Experience",
           id: "E001",
           title: "Fix login redirect loop",
+          symptom: "Users bounce away after login.",
           problem: "Guard loop happens after login.",
+          cause: "The callback route stays inside the auth guard.",
           solution: "Exclude login callback route.",
+          fix: "Return early for the callback route before auth fallback.",
+          scope: "Touches login redirect and route guard handling.",
           status: "ACTIVE",
           confidence: "CONFIRMED",
           level: "L2",
@@ -95,6 +99,7 @@ module.exports = async function runPanelTest() {
           anchors: {
             files: ["src/views/loginRedirect.vue"]
           },
+          relations: ["causes:E002"],
           created_at: "2026-04-21T00:00:00.000Z",
           updated_at: "2026-04-22T00:00:00.000Z"
         },
@@ -112,6 +117,7 @@ module.exports = async function runPanelTest() {
           anchors: {
             files: ["lib/project/index.js"]
           },
+          relations: ["blocked-by:E001"],
           created_at: "2026-04-22T00:00:00.000Z",
           updated_at: "2026-04-22T01:00:00.000Z"
         }
@@ -184,10 +190,12 @@ module.exports = async function runPanelTest() {
   assert.equal(view.top_tags[0].name, "routing");
   assert.equal(view.graph_view.nodes.some((node) => node.data.id === "E001"), true);
   assert.equal(view.graph_view.edges.length > 0, true);
+  assert.equal(view.experience_relations.E001.some((item) => item.relation_type === "causes"), true);
 
   const graph = buildCytoscapeGraph(runtime.index);
   assert.equal(graph.nodes.some((node) => node.data.nodeType === "experience"), true);
   assert.equal(graph.nodes.some((node) => node.data.nodeType === "tag"), true);
+  assert.equal(graph.edges.some((edge) => edge.data.edgeType === "relation:causes"), true);
 
   const html = generatePanelHtml(runtime);
   const scriptMatch = html.match(/<script>\s*([\s\S]*)\s*<\/script>\s*<\/body>/);
@@ -220,6 +228,12 @@ module.exports = async function runPanelTest() {
   assert.equal(html.includes("Browser Query Helper"), true);
   assert.equal(html.includes("Experience details"), true);
   assert.equal(html.includes("Related Experiences"), true);
+  assert.equal(html.includes("Explicit Relations"), true);
+  assert.equal(html.includes("causes:E002"), true);
+  assert.equal(html.includes("Symptom"), true);
+  assert.equal(html.includes("Cause"), true);
+  assert.equal(html.includes("Fix"), true);
+  assert.equal(html.includes("Scope"), true);
   assert.equal(html.includes("Open details"), true);
   assert.equal(html.includes("cytoscape.min.js"), true);
   assert.equal(html.includes("reviewPanel"), true);

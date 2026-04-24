@@ -41,12 +41,12 @@ function createRuntime() {
     },
     index: {
       stats: {
-        experience_count: 1,
-        active_count: 1,
+        experience_count: 2,
+        active_count: 2,
         needs_review_count: 0,
         stale_count: 0,
         archived_count: 0,
-        tag_count: 1,
+        tag_count: 2,
         tech_count: 1
       },
       nodes: [
@@ -55,8 +55,12 @@ function createRuntime() {
           kind: "Experience",
           type: "bug-fix",
           title: "Login redirect loop",
+          symptom: "Login succeeds but the app redirects again.",
           problem: "Guard loops after login.",
+          cause: "The callback route re-enters auth protection.",
           solution: "Exclude callback path.",
+          fix: "Return early for the callback route.",
+          scope: "Touches loginRedirect view and route guard.",
           root_cause: "Guard re-entry.",
           tags: ["auth"],
           techs: ["vue-router"],
@@ -71,7 +75,36 @@ function createRuntime() {
           anchors: {
             files: ["src/views/loginRedirect.vue"],
             concepts: ["loginRedirect"]
-          }
+          },
+          relations: ["causes:E002"]
+        },
+        {
+          id: "E002",
+          kind: "Experience",
+          type: "bug-fix",
+          title: "Token refresh fallback redirect",
+          symptom: "Refresh failure sends users to a fallback page.",
+          problem: "Refresh failure sends users to the fallback page.",
+          cause: "Refresh state was lost.",
+          solution: "Check callback redirect before fallback.",
+          fix: "Preserve callback redirect while refreshing the token.",
+          scope: "Touches refresh guard and auth callback flow.",
+          root_cause: "Refresh state was lost.",
+          tags: ["auth", "token"],
+          techs: ["vue-router"],
+          status: "ACTIVE",
+          level: "L2",
+          confidence: "CONFIRMED",
+          source: "test",
+          project_scope: "current-project",
+          created_at: "2026-04-21T00:00:00.000Z",
+          updated_at: "2026-04-21T00:00:00.000Z",
+          experience_file: "",
+          anchors: {
+            files: ["src/auth/refreshGuard.ts"],
+            concepts: ["refreshGuard"]
+          },
+          relations: ["blocked-by:E001"]
         }
       ],
       edges: []
@@ -112,6 +145,7 @@ module.exports = async function runCommandsTest() {
   assert.equal(helpOutput.includes("backup-inspect"), true);
   assert.equal(helpOutput.includes("project-register"), true);
   assert.equal(helpOutput.includes("project-resolve"), true);
+  assert.equal(helpOutput.includes("node scripts/ekg.js trace"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js ingest"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js stale-check"), true);
   assert.equal(helpOutput.includes("node scripts/ekg.js panel"), true);
@@ -119,7 +153,7 @@ module.exports = async function runCommandsTest() {
   const statsOutput = captureLogs(() => {
     commands.commandStats(runtime);
   });
-  assert.equal(statsOutput.includes("\"experience_count\": 1"), true);
+  assert.equal(statsOutput.includes("\"experience_count\": 2"), true);
 
   const queryOutput = captureLogs(() => {
     commands.commandQuery(runtime, {
@@ -128,6 +162,30 @@ module.exports = async function runCommandsTest() {
     });
   });
   assert.equal(queryOutput.includes("E001"), true);
+
+  const semanticQueryOutput = captureLogs(() => {
+    commands.commandQuery(runtime, {
+      positional: ["query", "signin reroute failure"],
+      options: {}
+    });
+  });
+  assert.equal(semanticQueryOutput.includes("E001"), true);
+  assert.equal(semanticQueryOutput.includes("semantic"), true);
+
+  const traceOutput = captureLogs(() => {
+    commands.commandTrace(runtime, {
+      positional: ["trace", "login redirect callback"],
+      options: {
+        depth: 4,
+        "path-limit": 4
+      }
+    });
+  });
+  assert.equal(traceOutput.includes("[EKG] trace for login redirect callback"), true);
+  assert.equal(traceOutput.includes("Token refresh fallback redirect"), true);
+  assert.equal(traceOutput.includes("summary:"), true);
+  assert.equal(traceOutput.includes("suggested files:"), true);
+  assert.equal(traceOutput.includes("check order:"), true);
 
   const pathOutput = captureLogs(() => {
     commands.commandPath(runtime, {
@@ -151,16 +209,37 @@ module.exports = async function runCommandsTest() {
       positional: ["add"],
       options: {
         title: "Footer fix",
+        symptom: "Footer tabs are incomplete",
         problem: "Footer tabs wrong",
+        cause: "The category entry was removed",
         solution: "Rebuild footer nav",
+        fix: "Restore the category item in the footer config",
+        scope: "Affects the mobile footer navigation",
+        relations: "depends-on:E001",
         tags: "h5,footer",
         techs: "vue",
         file: "src/components/Footer.vue"
       }
     }, { skipSave: true, skipExperienceFile: true });
   });
-  assert.equal(addOutput.includes("\"id\": \"E002\""), true);
-  assert.equal(runtime.index.nodes.length, 2);
+  assert.equal(addOutput.includes("\"id\": \"E003\""), true);
+  assert.equal(runtime.index.nodes.length, 3);
+  assert.equal(runtime.index.nodes[2].symptom, "Footer tabs are incomplete");
+  assert.equal(runtime.index.nodes[2].fix, "Restore the category item in the footer config");
+  assert.equal(runtime.index.nodes[2].relations[0], "depends-on:E001");
+
+  assert.throws(() => {
+    commands.commandAdd(runtime, {
+      positional: ["add"],
+      options: {
+        title: "Bad relation",
+        problem: "bad relation",
+        solution: "should fail",
+        relations: "unknown:E001",
+        file: "src/bad.js"
+      }
+    }, { skipSave: true, skipExperienceFile: true });
+  }, /invalid relation format/i);
 
   const ingestOutput = captureLogs(() => {
     commands.commandIngest(runtime, {
@@ -178,7 +257,7 @@ module.exports = async function runCommandsTest() {
 
   const reviewConfirmOutput = captureLogs(() => {
     commands.commandReview(runtime, {
-      positional: ["review", "E002"],
+      positional: ["review", "E003"],
       options: {
         confirm: true
       }

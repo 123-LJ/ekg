@@ -5,6 +5,7 @@ const process = require("node:process");
 const {
   parseArgs,
   loadRuntime,
+  saveRuntime,
   saveState,
   withWriteLock,
   getWriterIdentity
@@ -113,9 +114,13 @@ function buildCandidateInput(parsed, hookInput) {
 
   return {
     title: firstNonEmpty(parsed.options.title),
+    symptom: firstNonEmpty(parsed.options.symptom),
     problem: firstNonEmpty(parsed.options.problem, task),
+    cause: firstNonEmpty(parsed.options.cause),
     solution: firstNonEmpty(parsed.options.solution, summary),
+    fix: firstNonEmpty(parsed.options.fix),
     root_cause: firstNonEmpty(parsed.options["root-cause"], parsed.options.rootCause),
+    scope: firstNonEmpty(parsed.options.scope),
     task,
     summary,
     files,
@@ -140,6 +145,48 @@ function buildCandidateInput(parsed, hookInput) {
   };
 }
 
+const GENERIC_CAPTURE_PATTERNS = [
+  /^(done|finished|completed|updated|fixed|implemented)\.?$/iu,
+  /\b(worked|done|ok|fine|success)\b/iu,
+  /\bvarious changes\b/iu,
+  /\bmisc(?:ellaneous)?\b/iu,
+  /\brefined the code\b/iu,
+  /\bmade changes\b/iu,
+  /\bupdated files\b/iu,
+  /\bclean(ed)? up\b/iu
+];
+
+const ACTION_SIGNAL_PATTERN = /\b(fix|fixed|resolve|resolved|exclude|restore|preserve|add|added|remove|removed|guard|fallback|redirect|validate|restrict|block|allow|persist|upsert|repair|patch|prevent)\b/iu;
+
+function countMeaningfulFields(candidateInput) {
+  return [
+    candidateInput.symptom,
+    candidateInput.cause,
+    candidateInput.fix,
+    candidateInput.scope,
+    candidateInput.root_cause
+  ].filter((value) => String(value || "").trim()).length;
+}
+
+function looksGenericText(value = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return true;
+  }
+
+  return GENERIC_CAPTURE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function hasActionSignal(candidateInput) {
+  const haystack = [
+    candidateInput.problem,
+    candidateInput.solution,
+    candidateInput.fix,
+    candidateInput.summary
+  ].join(" ");
+  return ACTION_SIGNAL_PATTERN.test(haystack);
+}
+
 function shouldCaptureCandidate(candidateInput, captureConfig = {}) {
   if (captureConfig.enabled === false) {
     return false;
@@ -147,14 +194,29 @@ function shouldCaptureCandidate(candidateInput, captureConfig = {}) {
 
   const minimumSummaryLength = captureConfig.minimumSummaryLength || 24;
   const requireFileAnchor = captureConfig.requireFileAnchor !== false;
+  const maxAutoFiles = Number.parseInt(captureConfig.maxHookFiles || 6, 10);
+  const minStructuredFields = Number.parseInt(captureConfig.minimumStructuredFields || 1, 10);
   const hasEnoughText = candidateInput.solution.length >= minimumSummaryLength
     || (candidateInput.problem.length >= minimumSummaryLength && candidateInput.solution.length >= 8);
+  const structuredFieldCount = countMeaningfulFields(candidateInput);
 
   if (!hasEnoughText) {
     return false;
   }
 
   if (requireFileAnchor && (!candidateInput.files || candidateInput.files.length === 0)) {
+    return false;
+  }
+
+  if ((candidateInput.files || []).length > maxAutoFiles && structuredFieldCount < minStructuredFields + 1) {
+    return false;
+  }
+
+  if (looksGenericText(candidateInput.solution) && looksGenericText(candidateInput.problem)) {
+    return false;
+  }
+
+  if (!hasActionSignal(candidateInput) && structuredFieldCount < minStructuredFields) {
     return false;
   }
 

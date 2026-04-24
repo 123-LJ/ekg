@@ -24,6 +24,12 @@ module.exports = function runJsonStorageTest() {
           id: "E900",
           kind: "Experience",
           title: "Temporary storage test",
+          symptom: "Need to keep structured fields in json snapshots.",
+          problem: "JSON backend must retain new experience fields.",
+          cause: "Raw object serialization might skip optional properties.",
+          solution: "Write the full experience object to the json snapshot.",
+          fix: "Persist and reload structured fields with the rest of the node.",
+          scope: "Touches json backend runtime save/load flow.",
           status: "ACTIVE",
           tags: [],
           techs: [],
@@ -48,6 +54,8 @@ module.exports = function runJsonStorageTest() {
   assert.equal(fs.existsSync(storagePaths.STATE_FILE), true);
   assert.equal(fs.existsSync(storagePaths.REPORT_FILE), true);
   assert.equal(loaded.index.nodes[0].id, "E900");
+  assert.equal(loaded.index.nodes[0].symptom, "Need to keep structured fields in json snapshots.");
+  assert.equal(loaded.index.nodes[0].fix, "Persist and reload structured fields with the rest of the node.");
   assert.equal(loaded.state.hook.recent_injections.length, 0);
   assert.equal(fs.readFileSync(storagePaths.REPORT_FILE, "utf8"), reportContent);
 

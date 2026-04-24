@@ -1,6 +1,8 @@
 const assert = require("node:assert/strict");
 const {
   buildHookOutput,
+  buildCandidateInput,
+  shouldCaptureCandidate,
   shouldBlockOnCandidate,
   formatBlockReason,
   tryAutoAcceptCandidate
@@ -137,4 +139,47 @@ module.exports = function runTaskCompleteHookTest() {
   assert.equal(autoAccepted.reviewGate.riskLevel, "low");
   assert.equal(autoRuntime.index.nodes.length, 1);
   assert.equal(autoRuntime.state.capture.pending_candidates.length, 0);
+
+  const genericCandidate = buildCandidateInput({
+    positional: [],
+    options: {
+      task: "Updated files",
+      summary: "Done",
+      file: [
+        "src/a.js",
+        "src/b.js",
+        "src/c.js",
+        "src/d.js",
+        "src/e.js",
+        "src/f.js",
+        "src/g.js"
+      ]
+    }
+  }, null);
+  assert.equal(shouldCaptureCandidate(genericCandidate, {
+    enabled: true,
+    minimumSummaryLength: 4,
+    requireFileAnchor: true,
+    minimumStructuredFields: 1,
+    maxHookFiles: 6
+  }), false);
+
+  const structuredCandidate = buildCandidateInput({
+    positional: [],
+    options: {
+      task: "Fix login redirect callback",
+      summary: "Exclude the callback route from the auth guard fallback.",
+      symptom: "Users loop after login.",
+      cause: "The callback route was treated as protected.",
+      fix: "Return early for the callback route.",
+      file: "src/views/loginRedirect.vue"
+    }
+  }, null);
+  assert.equal(shouldCaptureCandidate(structuredCandidate, {
+    enabled: true,
+    minimumSummaryLength: 24,
+    requireFileAnchor: true,
+    minimumStructuredFields: 1,
+    maxHookFiles: 6
+  }), true);
 };

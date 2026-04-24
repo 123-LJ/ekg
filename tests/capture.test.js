@@ -66,8 +66,12 @@ module.exports = function runCaptureTest() {
 
   const firstResult = createCaptureCandidate(runtime.state, {
     title: "Footer navigation fix",
-    task: "修复 H5 底部导航缺少分类入口",
-    summary: "调整 Footer 结构，补首页、分类、我的三个导航入口并修正激活态。",
+    symptom: "Users cannot reach the category tab from the footer.",
+    task: "Fix the H5 footer so the category tab is reachable again.",
+    cause: "The footer config dropped the category entry.",
+    summary: "Restore the footer category entry and keep the active state in sync.",
+    fix: "Restore the category tab and keep the active state in sync.",
+    scope: "Affects the H5 footer navigation.",
     files: ["src/components/Footer.vue"],
     tags: ["h5", "footer"],
     techs: ["vue"]
@@ -77,6 +81,8 @@ module.exports = function runCaptureTest() {
 
   assert.equal(firstResult.created, true);
   assert.equal(firstResult.candidate.id, "C001");
+  assert.equal(firstResult.candidate.symptom, "Users cannot reach the category tab from the footer.");
+  assert.equal(firstResult.candidate.fix, "Restore the category tab and keep the active state in sync.");
   assert.equal(listCaptureCandidates(runtime.state).length, 1);
   assert.equal(findCaptureCandidate(runtime.state, "Footer navigation fix").id, "C001");
   const lowRisk = evaluateCandidateRisk(firstResult.candidate, runtime.config.capture.autoAccept, {
@@ -87,8 +93,8 @@ module.exports = function runCaptureTest() {
 
   const duplicateResult = createCaptureCandidate(runtime.state, {
     title: "Footer navigation fix",
-    task: "修复 H5 底部导航缺少分类入口",
-    summary: "同步补齐导航入口并保留当前页高亮。",
+    task: "Fix the H5 footer so the category tab is reachable again.",
+    summary: "Keep the category tab aligned with the current page highlight.",
     files: ["src/components/Footer.vue"]
   }, {
     pendingLimit: 10,
@@ -100,7 +106,7 @@ module.exports = function runCaptureTest() {
 
   const plainCandidate = createCaptureCandidate(runtime.state, {
     title: "Simple file anchor note",
-    task: "记录一个简单的低风险工作流候选",
+    task: "Record a low-risk workflow note.",
     summary: "Keep a short verified workflow note with a single file anchor.",
     files: ["docs/simple-note.md"],
     source: "host/auto-stop"
@@ -140,13 +146,15 @@ module.exports = function runCaptureTest() {
   assert.equal(runtime.index.nodes.length, 1);
   assert.equal(runtime.index.nodes[0].title, "Footer navigation fix");
   assert.equal(runtime.index.nodes[0].confidence, "CONFIRMED");
+  assert.equal(runtime.index.nodes[0].symptom, "Users cannot reach the category tab from the footer.");
+  assert.equal(runtime.index.nodes[0].fix, "Restore the category tab and keep the active state in sync.");
   assert.equal(findCaptureCandidate(runtime.state, "C001"), null);
   assert.equal(findCaptureCandidate(runtime.state, "Simple file anchor note").id, "C002");
 
   createCaptureCandidate(runtime.state, {
     title: "Dismiss me",
-    task: "临时噪音候选",
-    summary: "这条应该被忽略。",
+    task: "Temporary noisy note.",
+    summary: "This one should be ignored.",
     files: ["src/views/noise.vue"]
   }, {
     pendingLimit: 10

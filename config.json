@@ -24,7 +24,23 @@
     "detailScoreThreshold": 8,
     "pathWeight": 4,
     "tagWeight": 3,
-    "textWeight": 1
+    "textWeight": 1,
+    "semantic": {
+      "enabled": true,
+      "minimumScore": 0.18,
+      "scoreWeight": 8,
+      "tokenWeight": 0.45,
+      "trigramWeight": 0.35,
+      "fieldWeight": 0.2,
+      "aliases": {
+        "login": ["signin", "sign-in", "log-in", "authentication", "auth"],
+        "redirect": ["reroute", "jump", "callback", "returnurl", "return-url"],
+        "refresh": ["renew", "reload", "reauth", "re-auth"],
+        "footer": ["tabbar", "bottomnav", "bottom-nav"],
+        "bug": ["issue", "failure", "problem"],
+        "fix": ["repair", "resolve", "patch"]
+      }
+    }
   },
   "concurrency": {
     "enabled": true,
@@ -52,6 +68,8 @@
     "pendingLimit": 20,
     "dedupeWindowMinutes": 180,
     "minimumSummaryLength": 24,
+    "minimumStructuredFields": 1,
+    "maxHookFiles": 6,
     "requireFileAnchor": true,
     "defaultType": "workflow",
     "defaultLevel": "L1",

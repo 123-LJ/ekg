@@ -17,4 +17,6 @@ module.exports = function runStorageBackendTest() {
   assert.equal(typeof jsonBackend.loadData, "function");
   assert.equal(typeof sqliteBackend.loadData, "function");
   assert.equal(typeof sqliteBackend.saveData, "function");
+  assert.equal(typeof jsonBackend.saveReport, "function");
+  assert.equal(typeof sqliteBackend.saveReport, "function");
 };

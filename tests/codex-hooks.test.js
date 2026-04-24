@@ -28,7 +28,12 @@ module.exports = function runCodexHooksTest() {
         maxInjectedExperiences: 3
       },
       query: {
-        detailScoreThreshold: 8
+        detailScoreThreshold: 8,
+        semantic: {
+          enabled: true,
+          minimumScore: 0.1,
+          scoreWeight: 10
+        }
       }
     },
     index: {
@@ -119,6 +124,13 @@ module.exports = function runCodexHooksTest() {
 
   const promptOutput = buildUserPromptOutput(runtime, "Fix src/views/loginRedirect.vue");
   assert.equal(promptOutput.hookSpecificOutput.hookEventName, "UserPromptSubmit");
+
+  const semanticPromptContext = buildPromptContext(
+    runtime,
+    "Please fix signin reroute failure in the authentication flow"
+  );
+  assert.equal(semanticPromptContext.matches.length, 1);
+  assert.equal(semanticPromptContext.matches[0].experience.id, "E100");
 
   assert.equal(
     extractCommand({

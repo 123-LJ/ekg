@@ -30,8 +30,12 @@ module.exports = function runSqliteStorageTest() {
           kind: "Experience",
           type: "bug-fix",
           title: "SQLite storage test",
+          symptom: "Need to confirm sqlite-backed structured storage.",
           problem: "Persist through sqlite",
+          cause: "Structured fields could be lost during row mapping.",
           solution: "Store rows and export json",
+          fix: "Persist additional structured columns in sqlite and mirrors.",
+          scope: "Touches sqlite backend serialization and migration.",
           root_cause: "",
           tags: ["auth"],
           techs: ["node"],
@@ -71,6 +75,8 @@ module.exports = function runSqliteStorageTest() {
   assert.equal(fs.existsSync(storagePaths.INDEX_FILE), true);
   assert.equal(fs.existsSync(storagePaths.STATE_FILE), true);
   assert.equal(loaded.index.nodes[0].id, "E901");
+  assert.equal(loaded.index.nodes[0].symptom, "Need to confirm sqlite-backed structured storage.");
+  assert.equal(loaded.index.nodes[0].fix, "Persist additional structured columns in sqlite and mirrors.");
   assert.equal(loaded.index.edges[0].type, "involves");
   assert.equal(loaded.state.pipeline.name, "test-pipeline");
   assert.equal(fs.readFileSync(storagePaths.REPORT_FILE, "utf8"), reportContent);
@@ -96,6 +102,61 @@ module.exports = function runSqliteStorageTest() {
 
   const reloaded = sqliteBackend.loadData(config);
   assert.equal(reloaded.state.hook.recent_injections.length, 1);
+
+  const nextRuntime = {
+    config,
+    storagePaths,
+    index: {
+      version: "1.0.0",
+      stage: "phase-1",
+      stats: { experience_count: 1 },
+      indexes: { by_tag: { token: ["E902"] } },
+      nodes: [
+        {
+          id: "E902",
+          kind: "Experience",
+          type: "bug-fix",
+          title: "SQLite incremental sync test",
+          symptom: "Need to replace the previous sqlite experience row.",
+          problem: "Persist delta through sqlite",
+          cause: "Full rewrites hold the write lock too long.",
+          solution: "Upsert changed rows and delete removed rows only.",
+          fix: "Use incremental sqlite sync instead of truncate-and-reload.",
+          scope: "Touches sqlite experience and edge persistence.",
+          root_cause: "",
+          tags: ["token"],
+          techs: ["node"],
+          level: "L2",
+          confidence: "CONFIRMED",
+          status: "ACTIVE",
+          source: "test",
+          project_scope: "current-project",
+          anchors: { files: ["src/next-test.js"], concepts: ["sqlite-sync"], commits: [] },
+          relations: [],
+          writer: { agent_id: "test-agent" },
+          created_at: "2026-04-21T02:00:00.000Z",
+          updated_at: "2026-04-21T02:00:00.000Z",
+          experience_file: "experiences/E902-sqlite-incremental-sync-test.md"
+        }
+      ],
+      edges: [
+        {
+          from: "E902",
+          to: "tag:token",
+          type: "involves",
+          reason: "incremental edge"
+        }
+      ]
+    },
+    state: nextState
+  };
+
+  sqliteBackend.saveData(nextRuntime, { reportContent: "# sqlite report v2\n" });
+  const reloadedAfterDelta = sqliteBackend.loadData(config);
+  assert.equal(reloadedAfterDelta.index.nodes.length, 1);
+  assert.equal(reloadedAfterDelta.index.nodes[0].id, "E902");
+  assert.equal(reloadedAfterDelta.index.edges.length, 1);
+  assert.equal(reloadedAfterDelta.index.edges[0].from, "E902");
 
   fs.rmSync(path.join(storagePaths.OUTPUT_DIR), { recursive: true, force: true });
 };
