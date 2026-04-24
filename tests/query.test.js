@@ -4,7 +4,8 @@ const {
   queryPapers,
   traceExperiences,
   scoreSemanticExperience,
-  scoreSemanticPaper
+  scoreSemanticPaper,
+  buildExperienceEvolutionMaps
 } = require("../lib/query");
 
 module.exports = function runQueryTest() {
@@ -69,6 +70,22 @@ module.exports = function runQueryTest() {
         relations: ["blocked-by:E001"]
       },
       {
+        id: "E004",
+        kind: "Experience",
+        title: "Login redirect loop v2",
+        problem: "Old callback exclusion was too narrow.",
+        solution: "Exclude callback path and preserve callback state.",
+        root_cause: "Old guard fix did not handle refresh state.",
+        tags: ["auth", "redirect"],
+        techs: ["vue-router"],
+        status: "ACTIVE",
+        anchors: {
+          files: ["src/views/loginRedirect.vue"],
+          concepts: ["loginRedirect", "callbackRedirect"]
+        },
+        relations: ["supersedes:E001"]
+      },
+      {
         id: "P001",
         kind: "Paper",
         title: "Callback-aware authentication routing",
@@ -98,8 +115,10 @@ module.exports = function runQueryTest() {
   }, 3);
 
   assert.equal(matches.length > 0, true);
-  assert.equal(matches[0].experience.id, "E001");
+  assert.equal(matches[0].experience.id, "E004");
   assert.equal(matches[0].direct, true);
+  assert.equal(matches.some((match) => match.experience.id === "E001"), true);
+  assert.equal(matches.find((match) => match.experience.id === "E001").reasons.some((reason) => reason.includes("superseded by")), true);
 
   const semanticOnlyMatches = queryExperiences(index, {
     text: "signin reroute failure",
@@ -123,6 +142,10 @@ module.exports = function runQueryTest() {
     }
   });
   assert.equal(semanticScore.semanticScore > 0, true);
+
+  const evolution = buildExperienceEvolutionMaps(index);
+  assert.equal(evolution.supersededBy.get("E001")[0], "E004");
+  assert.equal(evolution.supersedes.get("E004")[0], "E001");
 
   const paperMatches = queryPapers(index, {
     text: "signin callback routing research",

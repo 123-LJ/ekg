@@ -46,7 +46,7 @@ module.exports = async function runPapersTest() {
 
   const semanticScholarPaper = mapSemanticScholarPaperToPaper({
     title: "Signin redirect recovery",
-    abstract: "Studies redirect handling.",
+    abstract: "Studies redirect handling in large authentication systems. Explains why callback routes should bypass generic auth guards. Evaluates fallback reduction across multiple deployment environments.",
     year: 2025,
     venue: "FSE",
     authors: [{ name: "Alice Zhang" }],
@@ -58,6 +58,8 @@ module.exports = async function runPapersTest() {
     }
   }, { multilingualConfig });
   assert.equal(semanticScholarPaper.authors[0], "Alice Zhang");
+  assert.equal(semanticScholarPaper.summary.length <= 240, true);
+  assert.equal(semanticScholarPaper.abstract.includes("callback routes"), true);
 
   const fetched = await fetchPaperMetadata({
     source: "openalex",
@@ -101,4 +103,5 @@ module.exports = async function runPapersTest() {
   assert.equal(runtime.index.nodes[0].id, "P001");
   assert.equal(runtime.index.nodes[0].canonical_terms.includes("agent-memory"), true);
   assert.equal(Array.isArray(runtime.index.nodes[0].suggested_canonical_terms), true);
+  assert.equal(runtime.index.nodes[0].summary.length <= 240, true);
 };

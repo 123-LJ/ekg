@@ -63,6 +63,7 @@ module.exports = async function runPanelTest() {
         active_count: 1,
         needs_review_count: 1,
         stale_count: 0,
+        superseded_count: 0,
         archived_count: 0,
         tag_count: 2,
         tech_count: 2
@@ -118,7 +119,7 @@ module.exports = async function runPanelTest() {
           anchors: {
             files: ["lib/project/index.js"]
           },
-          relations: ["blocked-by:E001"],
+          relations: ["blocked-by:E001", "supersedes:E001"],
           created_at: "2026-04-22T00:00:00.000Z",
           updated_at: "2026-04-22T01:00:00.000Z"
         },
@@ -212,6 +213,8 @@ module.exports = async function runPanelTest() {
   assert.equal(view.graph_view.nodes.some((node) => node.data.id === "P001"), true);
   assert.equal(view.graph_view.edges.length > 0, true);
   assert.equal(view.experience_relations.E001.some((item) => item.relation_type === "causes"), true);
+  assert.equal(view.all_experiences.find((item) => item.id === "E001").superseded_by_ids.includes("E002"), true);
+  assert.equal(view.all_experiences.find((item) => item.id === "E002").supersedes_ids.includes("E001"), true);
 
   const graph = buildCytoscapeGraph(runtime.index);
   assert.equal(graph.nodes.some((node) => node.data.nodeType === "experience"), true);
@@ -254,6 +257,8 @@ module.exports = async function runPanelTest() {
   assert.equal(html.includes("Top Topics"), true);
   assert.equal(html.includes("Callback-aware authentication routing"), true);
   assert.equal(html.includes("Explicit Relations"), true);
+  assert.equal(html.includes("Recommended Current Version"), true);
+  assert.equal(html.includes("Supersedes"), true);
   assert.equal(html.includes("causes:E002"), true);
   assert.equal(html.includes("Symptom"), true);
   assert.equal(html.includes("Cause"), true);

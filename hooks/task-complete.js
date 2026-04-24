@@ -8,7 +8,8 @@ const {
   saveRuntime,
   saveState,
   withWriteLock,
-  getWriterIdentity
+  getWriterIdentity,
+  buildCompactText
 } = require("../lib");
 const {
   collectList,
@@ -111,13 +112,21 @@ function buildCandidateInput(parsed, hookInput) {
     parsed.options.summary,
     pickText(hookInput, ["summary", "result", "output", "output_text", "response", "message"])
   );
+  const compactProblem = buildCompactText(firstNonEmpty(parsed.options.problem, task), {
+    maxLength: 220,
+    maxSegments: 2
+  });
+  const compactSolution = buildCompactText(firstNonEmpty(parsed.options.solution, summary), {
+    maxLength: 180,
+    maxSegments: 2
+  });
 
   return {
     title: firstNonEmpty(parsed.options.title),
     symptom: firstNonEmpty(parsed.options.symptom),
-    problem: firstNonEmpty(parsed.options.problem, task),
+    problem: compactProblem,
     cause: firstNonEmpty(parsed.options.cause),
-    solution: firstNonEmpty(parsed.options.solution, summary),
+    solution: compactSolution,
     fix: firstNonEmpty(parsed.options.fix),
     root_cause: firstNonEmpty(parsed.options["root-cause"], parsed.options.rootCause),
     scope: firstNonEmpty(parsed.options.scope),
@@ -187,9 +196,15 @@ function hasActionSignal(candidateInput) {
   return ACTION_SIGNAL_PATTERN.test(haystack);
 }
 
-function shouldCaptureCandidate(candidateInput, captureConfig = {}) {
+function evaluateCaptureCandidate(candidateInput, captureConfig = {}) {
+  const reasons = [];
+
   if (captureConfig.enabled === false) {
-    return false;
+    reasons.push("capture is disabled by config");
+    return {
+      shouldCapture: false,
+      reasons
+    };
   }
 
   const minimumSummaryLength = captureConfig.minimumSummaryLength || 24;
@@ -201,26 +216,38 @@ function shouldCaptureCandidate(candidateInput, captureConfig = {}) {
   const structuredFieldCount = countMeaningfulFields(candidateInput);
 
   if (!hasEnoughText) {
-    return false;
+    reasons.push(`summary too short for capture (minimum ${minimumSummaryLength} chars)`);
   }
 
   if (requireFileAnchor && (!candidateInput.files || candidateInput.files.length === 0)) {
-    return false;
+    reasons.push("missing file anchor");
   }
 
   if ((candidateInput.files || []).length > maxAutoFiles && structuredFieldCount < minStructuredFields + 1) {
-    return false;
+    reasons.push(`too many files for low-structure capture (${candidateInput.files.length} > ${maxAutoFiles})`);
   }
 
   if (looksGenericText(candidateInput.solution) && looksGenericText(candidateInput.problem)) {
-    return false;
+    reasons.push("problem and solution look too generic");
   }
 
   if (!hasActionSignal(candidateInput) && structuredFieldCount < minStructuredFields) {
-    return false;
+    reasons.push(`missing action signal or structured fields (need at least ${minStructuredFields})`);
   }
 
-  return true;
+  return {
+    shouldCapture: reasons.length === 0,
+    reasons
+  };
+}
+
+function shouldCaptureCandidate(candidateInput, captureConfig = {}) {
+  return evaluateCaptureCandidate(candidateInput, captureConfig).shouldCapture;
+}
+
+function formatSkipReason(reasons = []) {
+  const suffix = reasons.length ? `: ${reasons.join("; ")}` : "";
+  return `[EKG] skipped capture candidate${suffix}`;
 }
 
 function formatAdditionalContext(candidate, created) {
@@ -352,9 +379,26 @@ function main(argv = process.argv.slice(2)) {
   const runtime = loadRuntime();
   const candidateInput = buildCandidateInput(parsed, hookInput);
   const captureConfig = runtime.config.capture || {};
+  const evaluation = evaluateCaptureCandidate(candidateInput, captureConfig);
 
-  if (!shouldCaptureCandidate(candidateInput, captureConfig)) {
-    process.exit(0);
+  if (!evaluation.shouldCapture) {
+    const skipMessage = formatSkipReason(evaluation.reasons);
+
+    if (hookInput) {
+      process.stdout.write(
+        `${JSON.stringify({
+          additionalContext: skipMessage,
+          suppressOutput: true
+        }, null, 2)}\n`
+      );
+      return;
+    }
+
+    console.log(JSON.stringify({
+      skipped: true,
+      reasons: evaluation.reasons
+    }, null, 2));
+    return;
   }
 
   let result = null;
@@ -404,7 +448,9 @@ module.exports = {
   flattenPossibleList,
   extractFilesFromHookInput,
   buildCandidateInput,
+  evaluateCaptureCandidate,
   shouldCaptureCandidate,
+  formatSkipReason,
   formatAdditionalContext,
   shouldBlockOnCandidate,
   formatBlockReason,

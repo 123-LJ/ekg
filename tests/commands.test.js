@@ -205,6 +205,33 @@ module.exports = async function runCommandsTest() {
   assert.equal(semanticQueryOutput.includes("E001"), true);
   assert.equal(semanticQueryOutput.includes("semantic"), true);
 
+  const supersedeOutput = captureLogs(() => {
+    commands.commandSupersede(runtime, {
+      positional: ["supersede", "E002", "E001"],
+      options: {}
+    }, { skipSave: true, skipExperienceFile: true });
+  });
+  assert.equal(supersedeOutput.includes("\"action\": \"supersede\""), true);
+  assert.equal(runtime.index.nodes[0].status, "SUPERSEDED");
+  assert.equal(runtime.index.nodes[1].relations.includes("supersedes:E001"), true);
+
+  const explainOutput = captureLogs(() => {
+    commands.commandExplain(runtime, {
+      positional: ["explain", "E001"],
+      options: {}
+    });
+  });
+  assert.equal(explainOutput.includes("SUPERSEDED"), true);
+  assert.equal(explainOutput.includes("superseded by: E002"), true);
+
+  const queryAfterSupersedeOutput = captureLogs(() => {
+    commands.commandQuery(runtime, {
+      positional: ["query", "login redirect"],
+      options: {}
+    });
+  });
+  assert.equal(queryAfterSupersedeOutput.includes("recommended current version: E002: Token refresh fallback redirect"), true);
+
   const paperQueryOutput = captureLogs(() => {
     commands.commandPaperQuery(runtime, {
       positional: ["paper-query", "signin callback research"],

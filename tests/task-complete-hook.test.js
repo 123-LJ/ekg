@@ -2,7 +2,9 @@ const assert = require("node:assert/strict");
 const {
   buildHookOutput,
   buildCandidateInput,
+  evaluateCaptureCandidate,
   shouldCaptureCandidate,
+  formatSkipReason,
   shouldBlockOnCandidate,
   formatBlockReason,
   tryAutoAcceptCandidate
@@ -163,6 +165,17 @@ module.exports = function runTaskCompleteHookTest() {
     minimumStructuredFields: 1,
     maxHookFiles: 6
   }), false);
+  const genericEvaluation = evaluateCaptureCandidate(genericCandidate, {
+    enabled: true,
+    minimumSummaryLength: 4,
+    requireFileAnchor: true,
+    minimumStructuredFields: 1,
+    maxHookFiles: 6
+  });
+  assert.equal(genericEvaluation.shouldCapture, false);
+  assert.equal(genericEvaluation.reasons.includes("too many files for low-structure capture (7 > 6)"), true);
+  assert.equal(genericEvaluation.reasons.includes("problem and solution look too generic"), true);
+  assert.equal(formatSkipReason(genericEvaluation.reasons).includes("skipped capture candidate"), true);
 
   const structuredCandidate = buildCandidateInput({
     positional: [],
@@ -182,4 +195,24 @@ module.exports = function runTaskCompleteHookTest() {
     minimumStructuredFields: 1,
     maxHookFiles: 6
   }), true);
+  const structuredEvaluation = evaluateCaptureCandidate(structuredCandidate, {
+    enabled: true,
+    minimumSummaryLength: 24,
+    requireFileAnchor: true,
+    minimumStructuredFields: 1,
+    maxHookFiles: 6
+  });
+  assert.equal(structuredEvaluation.shouldCapture, true);
+  assert.deepEqual(structuredEvaluation.reasons, []);
+
+  const verboseCandidate = buildCandidateInput({
+    positional: [],
+    options: {
+      task: "Stabilize paper import and capture storage for long research summaries across the review pipeline.",
+      summary: "Added a long-form research capture flow that keeps the original explanation intact for later review while compressing the candidate-facing solution into a smaller summary for retrieval, review queues, and auto-accept heuristics. This should avoid long paper notes overwhelming capture decisions while still preserving important context for manual inspection.",
+      file: "lib/papers/index.js"
+    }
+  }, null);
+  assert.equal(verboseCandidate.solution.length <= 180, true);
+  assert.equal(verboseCandidate.summary.includes("original explanation intact"), true);
 };

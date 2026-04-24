@@ -120,6 +120,16 @@ module.exports = function runCaptureTest() {
   assert.equal(highConfidenceLowRisk.autoAcceptEligible, true);
   assert.equal(highConfidenceLowRisk.riskLevel, "low");
 
+  const verboseCandidate = createCaptureCandidate(runtime.state, {
+    title: "Long-form paper workflow note",
+    task: "Store long research workflow notes without dropping the raw explanation.",
+    summary: "This summary is intentionally long so the capture record keeps a full-fidelity version for later manual review even when the candidate-facing text has to be shorter in downstream workflows and reporting surfaces.",
+    files: ["papers/research-memory.md"]
+  }, {
+    pendingLimit: 10
+  });
+  assert.equal(verboseCandidate.candidate.origin.summary_full.includes("full-fidelity version"), true);
+
   const statusOutput = captureLogs(() => {
     commands.commandCaptureStatus(runtime, {
       positional: ["capture-status"],
@@ -162,13 +172,14 @@ module.exports = function runCaptureTest() {
 
   const dismissOutput = captureLogs(() => {
     commands.commandCaptureDismiss(runtime, {
-      positional: ["capture-dismiss", "C003"],
+      positional: ["capture-dismiss", "C004"],
       options: {}
     }, {
       skipSave: true
     });
   });
   assert.equal(dismissOutput.includes("\"dismissed\": true"), true);
-  assert.equal(listCaptureCandidates(runtime.state).length, 1);
+  assert.equal(listCaptureCandidates(runtime.state).length, 2);
   assert.equal(findCaptureCandidate(runtime.state, "Simple file anchor note").id, "C002");
+  assert.equal(findCaptureCandidate(runtime.state, "Long-form paper workflow note").id, "C003");
 };
